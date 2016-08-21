@@ -340,9 +340,7 @@ ameTest<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       if(!symmetric){UV<-rUV_fc(E, U, V,rho, s2,shrink) }
 
       U<-UV$U ; V<-UV$V
-    }    
-    uList = c(uList, U)
-    vList = c(vList, V)
+    }
 
     # burn-in countdown
     if(s%%odens==0&s<=burn){cat(round(100*s/burn,2)," pct burnin complete \n")}
@@ -369,6 +367,10 @@ ameTest<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       }
 
       # update posterior sums of random effects
+      if( R > 0){
+        uList[[(s-burn)/odens]] = U
+        vList[[(s-burn)/odens]] = V
+      }
       UVPS <- UVPS + U %*% t(V)
       APS <- APS + a
       BPS <- BPS + b 
@@ -376,7 +378,7 @@ ameTest<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       # simulate from posterior predictive 
       EZ<-Xbeta(X, beta) + outer(a, b, "+") + U %*% t(V) 
       if(symmetric){ EZ<-(EZ+t(EZ))/2 } 
-      zList = c(zList, EZ)
+      zList[[(s-burn)/odens]] = EZ
 
       if(model=="bin") { Ys<-simY_bin(EZ,rho) }
       if(model=="cbin"){ Ys<-1*(simY_frn(EZ,rho,odmax,YO=Y)>0) }
@@ -388,7 +390,7 @@ ameTest<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       if(symmetric){ Ys[lower.tri(Ys)]<-0 ; Ys<-Ys+t(Ys)  }
 
       # update posterior sum
-      ysList = c(ysList, Ys)
+      ysList[[(s-burn)/odens]] = Ys
       YPS<-YPS+Ys
 
       # save posterior predictive GOF stats

@@ -69,10 +69,6 @@ row effects u} \item{V}{posterior mean of multiplicative column effects v (asymm
 matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
 \item{GOF}{observed (first row) and posterior predictive (remaining rows)
 values of four goodness-of-fit statistics}
-\item{zList}{ list of predicted values }
-\item{ysList}{ list of simulated networks }
-\item{uList}{ list of U multiplicative effects }
-\item{vList}{ list of V multiplicative effects }
 }
 \description{
 An MCMC routine providing a fit to an additive and multiplicative effects

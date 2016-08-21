@@ -67,10 +67,6 @@
 #' matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
 #' \item{GOF}{observed (first row) and posterior predictive (remaining rows)
 #' values of four goodness-of-fit statistics}
-#' \item{zList}{ list of predicted values }
-#' \item{ysList}{ list of simulated networks }
-#' \item{uList}{ list of U multiplicative effects }
-#' \item{vList}{ list of V multiplicative effects }
 #' @author Peter Hoff
 #' @examples
 #' 
@@ -211,10 +207,6 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   rownames(GOF)<-"obs"
   colnames(GOF)<- c("sd.rowmean","sd.colmean","dyad.dep","triad.dep")
   names(APS)<-names(BPS)<- rownames(U)<-rownames(V)<-rownames(Y)
-  zList = list()
-  ysList = list()
-  uList = list()
-  vList = list()
  
   # names of parameters, asymmetric case 
   if(!symmetric)
@@ -334,8 +326,6 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
 
       U<-UV$U ; V<-UV$V
     }    
-    uList = c(uList, U)
-    vList = c(vList, V)
 
     # burn-in countdown
     if(s%%odens==0&s<=burn){cat(round(100*s/burn,2)," pct burnin complete \n")}
@@ -369,7 +359,6 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       # simulate from posterior predictive 
       EZ<-Xbeta(X, beta) + outer(a, b, "+") + U %*% t(V) 
       if(symmetric){ EZ<-(EZ+t(EZ))/2 } 
-      zList = c(zList, EZ)
 
       if(model=="bin") { Ys<-simY_bin(EZ,rho) }
       if(model=="cbin"){ Ys<-1*(simY_frn(EZ,rho,odmax,YO=Y)>0) }
@@ -381,7 +370,6 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       if(symmetric){ Ys[lower.tri(Ys)]<-0 ; Ys<-Ys+t(Ys)  }
 
       # update posterior sum
-      ysList = c(ysList, Ys)
       YPS<-YPS+Ys
 
       # save posterior predictive GOF stats
@@ -455,7 +443,7 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     V<-UDV$v[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
     rownames(U)<-rownames(V)<-rownames(Y) 
     fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
-                YPM=YPM,GOF=GOF, zList, ysList, uList, vList)
+                YPM=YPM,GOF=GOF)
   }
 
   # symmetric output
@@ -469,7 +457,7 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     rownames(U)<-rownames(ULUPM)<-colnames(ULUPM)<-rownames(Y)
     EZ<-.5*(EZ+t(EZ)) ; YPM<-.5*(YPM+t(YPM)) 
     fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
-              YPM=YPM,GOF=GOF, zList, ysList, uList, vList)
+              YPM=YPM,GOF=GOF)
   } 
 
   class(fit) <- "ame"
