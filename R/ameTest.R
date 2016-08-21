@@ -213,8 +213,6 @@ ameTest<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   YPS<-matrix(0,nrow(Y),ncol(Y)) ; dimnames(YPS)<-dimnames(Y)
   if(!gof){ GOF<-matrix(gofstats(Y),1,4,
     dimnames=list('obs',c("sd.rowmean","sd.colmean","dyad.dep","triad.dep")) ) }
-  rownames(GOF)<-"obs"
-  colnames(GOF)<- c("sd.rowmean","sd.colmean","dyad.dep","triad.dep")
   if(gof){ GOF = matrix(NA, nrow=(nscan/odens)+1, ncol=4, 
       dimnames=list(c('obs',1:(nscan/odens)),c("sd.rowmean","sd.colmean","dyad.dep","triad.dep"))) }
   names(APS)<-names(BPS)<- rownames(U)<-rownames(V)<-rownames(Y)
