@@ -57,19 +57,19 @@ for (t in 1:N)
 dimnames(X)[[3]]<-as.list(dimnames(Xt)[[3]]) 
 dimnames(X)[[4]]<-dimnames(Y)[[3]]
 
-# # design matrix warning for rrl
-# if( model=="rrl" & any(apply(apply(X,c(1,3),var),2,sum)==0)
-#     & !any( apply(X,c(3),function(x){var(c(x))})==0) )
-# {
-#   cat("WARNING: row effects are not estimable using this procedure ","\n")
-# }
-# 
-# # design matrix warning for rrl and ord
-# if( is.element(model,c("ord","rrl")) & 
-#     any( apply(X,c(3),function(x){var(c(x))})==0 ) )
-# {
-#   cat("WARNING: an intercept is not estimable using this procedure ","\n")
-# }
+# design matrix warning for rrl
+if( model=="rrl" & any(apply(apply(X,c(1,3),var),2,sum)==0)
+    & !any( apply(X,c(3),function(x){var(c(x))})==0) )
+{
+  cat("WARNING: row effects are not estimable using this procedure ","\n")
+}
+
+# design matrix warning for rrl and ord
+if( is.element(model,c("ord","rrl")) &
+    any( apply(X,c(3),function(x){var(c(x))})==0 ) )
+{
+  cat("WARNING: an intercept is not estimable using this procedure ","\n")
+}
 
 
 # construct matrix of ranked nominations for frn, rrl   
@@ -188,8 +188,9 @@ if(symmetric)
 have_coda<-suppressWarnings(
   try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
 
-for (s in 1:(nscan + burn)) 
-{ 
+# for (s in 1:(nscan + burn)) 
+# { 
+s=1
   
   # update Z
   E.nrm<-array(dim=dim(Z))

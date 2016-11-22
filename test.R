@@ -84,6 +84,7 @@ pd<-ifelse(is.null(Xdyad),0,dim(Xdyad[[1]])[3])
 
 X<-lapply(1:N, function(t){
   Xt<-design_array(Xrow[[t]], Xcol[[t]], Xdyad[[t]], intercept, nrow(Y[[t]]))
+  dimnames(Xt)[[1]] <- dimnames(Xt)[[2]] <- rownames(Xdyad[[t]])
 
   # re-add intercept if it was removed
   if(dim(Xt)[3] < sum(pr,pc,pd,intercept) )
@@ -94,21 +95,32 @@ X<-lapply(1:N, function(t){
   }
   return(Xt)
 })
-names(X) <- dimnames(Y)[[3]]
+names(X) <- names(Y)
 
-# # design matrix warning for rrl
-# if( model=="rrl" & any(apply(apply(X,c(1,3),var),2,sum)==0)
-#                & !any( apply(X,c(3),function(x){var(c(x))})==0) )
-# {
-# cat("WARNING: row effects are not estimable using this procedure ","\n")
-# }
+model='rrl'
+# design matrix warnings
+if( is.element( model, c('ord','rrl') ) & sum(pr,pc,pd,intercept)>0 ){
 
-# # design matrix warning for rrl and ord
-# if( is.element(model,c("ord","rrl")) & 
-#   any( apply(X,c(3),function(x){var(c(x))})==0 ) )
-# {
-# cat("WARNING: an intercept is not estimable using this procedure ","\n")
-# }
+  # construct feature array with missing
+  xArr <- array(NA, 
+    dim=c(length(fullActorSet),length(fullActorSet),dim(X[[1]])[3],N),
+    dimnames=list( fullActorSet, fullActorSet, dimnames(X[[1]])[[3]], names(Y) ) )
+  for(t in 1:N){ for(v in 1:dim(xArr)[3]){
+    x <- X[[t]][,,v] ; missing <- setdiff(fullActorSet, rownames(x))
+    for(m in missing){ x<-cbind(x,NA) ; x<-rbind(x,NA) ; rownames(x)[nrow(x)] <- colnames(x)[ncol(x)] <- m }
+    xArr[,,v,t]<-x } } 
+
+  # design matrix warning for rrl
+  if( model=='rrl' & any(apply(apply(xArr,c(1,3),var,na.rm=TRUE),2,sum,na.rm=TRUE)==0) 
+    & !any( apply(xArr,c(3),function(x){var(c(x),na.rm=TRUE)})==0 ) ){
+    cat("WARNING: row effects are not estimable using this procedure ","\n")
+  }
+
+  # design matrix warning for rrl and ord
+  if( any( apply(xArr,c(3),function(x){var(c(x),na.rm=TRUE)})==0 ) ){
+    cat("WARNING: an intercept is not estimable using this procedure ","\n")
+  } ; rm(list=c('t','v','x','missing','xArr'))
+}
 
 
 # construct matrix of ranked nominations for frn, rrl   
@@ -163,35 +175,33 @@ Z<-lapply(Y, function(y){
   }
   })
 
-# row and column means
-#### need to pull out "last" value for every actor's a/b into n vector for prior
-ab<-lapply(Z, function(z){
-  a<-rowMeans(z, na.rm=TRUE) ; b<-colMeans(z, na.rm=TRUE)
-  return( list(a=a,b=b) ) })
-a <- ab[[length(ab)]]$a ; b <- ab[[length(ab)]]$b
+# add dimnames to Z
+Z <- lapply(1:N, function(t){ rownames(Z[[t]])=colnames(Z[[t]])=rownames(Y[[t]]) ; return(Z[[t]]) })
 
 # starting values for missing entries  
-Z <- lapply(Z, function(z){
+missStart <- lapply(Z, function(z){
   mu<-mean(z,na.rm=TRUE)
   a<-rowMeans(z,na.rm=TRUE) ; b<-colMeans(z,na.rm=TRUE)  
+  ab<-matrix(cbind(a,b), nrow=length(a), ncol=2, dimnames=list(names(a), c('a','b')))  
   za<-mu + outer(a,b,'+')
   z[is.na(z)] <- za[is.na(z)]
-  return(z)
+  return(list(z=z,ab=ab))
   })
+Z<-lapply(missStart,function(x)x$z) ; ab<-do.call('rbind',lapply(1:N,function(t)cbind(missStart[[t]]$ab,t)))
 
 # other starting values
 beta<-rep(0,dim(X[[1]])[3]) 
 s2<-1 
 rho<-0
-Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
-U<-V<-matrix(0, length(fullActorSet), R) 
-
+Sab<-tcrossprod(c(rvar,cvar))*cov(do.call('rbind',lapply(
+  split(ab,rownames(ab)),function(x){x=matrix(x,ncol=3);x[order(x[,3],decreasing=TRUE),1:2][1,]})))
+U<-V<-matrix(0, length(fullActorSet), R, dimnames=list(fullActorSet,NULL)) 
 
 #  output items
 BETA <- matrix(nrow = 0, ncol = dim(X[[1]])[3] - pr*symmetric)
 VC<-matrix(nrow=0,ncol=5-3*symmetric) 
 UVPS <- U %*% t(V) * 0 
-APS<-BPS<- rep(0,length(fullActorSet))  
+APS<-BPS<- rep(0,length(fullActorSet)) ; names(APS)<-names(BPS)<-fullActorSet
 YPS <- lapply(Y, function(y){ y*0 })
 GOF<-matrix(rowMeans( do.call('cbind', lapply(Y, function(y){ gofstats(y) }) ) ),1,4)  
 rownames(GOF)<-"obs"
@@ -221,8 +231,9 @@ colnames(BETA)<-c(bni,bnn,bnd)
 have_coda<-suppressWarnings(
            try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
 
-for (s in 1:(nscan + burn)) 
-{ 
+# for (s in 1:(nscan + burn)) 
+# { 
+s=1
 
 # update Z
 E.nrm<-array(dim=dim(Z))
