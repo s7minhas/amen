@@ -18,11 +18,48 @@ plot=FALSE ;  print = FALSE ;  gof=TRUE
 Y <- lapply(1:dim(YX_bin_long$Y)[3], function(t){YX_bin_long$Y[,,t]})
 Xdyad <- lapply(1:dim(YX_bin_long$X)[4], function(t){YX_bin_long$X[,,,t]})
 
+# add labels
+set.seed(6886) ; actors <- as.character( sample(300:700,size=50,replace=FALSE) )
+Y <- lapply(Y, function(y){ dimnames(y)[[1]] <- actors ; dimnames(y)[[2]] <- actors ; return(y) })
+Xdyad <- lapply(Xdyad, function(x){ dimnames(x)[[1]] <- actors ; dimnames(x)[[2]] <- actors ; return(x) })
+
+# change actor composition
+
+
+################################################################
 # reset odmax param
 odmax <- rep( max( unlist( lapply(Y, function(y){ apply(y>0, 1, sum, na.rm=TRUE)  }) ) ), nrow(Y[[1]]) )
 
 # set random seed 
 set.seed(seed)
+
+# make sure actor labels are provided
+dvRowLabCnt <- do.call('sum', lapply(Y, function(y) !is.null( dimnames(y)[[1]] ) ) )
+dvColLabCnt <- do.call('sum', lapply(Y, function(y) !is.null( dimnames(y)[[2]] ) ) )
+if( dvRowLabCnt!=length(Y) | dvColLabCnt!=length(Y) ){
+  stop('Actor labels are missing from Y.') }
+
+if(!is.null(Xdyad)){
+xDyadRowLabCnt <- do.call('sum', lapply(Xdyad, function(x) !is.null( dimnames(x)[[1]] ) ) )
+xDyadvColLabCnt <- do.call('sum', lapply(Xdyad, function(x) !is.null( dimnames(x)[[2]] ) ) )
+if( xDyadRowLabCnt!=length(Y) | xDyadvColLabCnt!=length(Y) ){
+  stop('Actor labels are missing from Xdyad.') }
+}
+
+if(!is.null(Xrow)){
+  xRowLabCnt <- do.call('sum', lapply(Xrow, function(x) !is.null(rownames(x)) ))
+  if( xRowLabCnt != length(Y) ){
+    stop('Actor labels are missing from Xrow.') }
+}
+
+if(!is.null(Xcol)){
+  xColLabCnt <- do.call('sum', lapply(Xcol, function(x) !is.null(rownames(x)) ))
+  if( xColLabCnt != length(Y) ){
+    stop('Actor labels are missing from Xcol.') }
+}
+
+# create full frame of actors
+fullActorSet <- unique(unlist(lapply(Y,rownames)))
 
 # set diag to NA 
 N<-length(Y) ; Y<-lapply(Y, function(y){diag(y)=NA; return(y)})
@@ -41,13 +78,12 @@ if(length(odmax)==1) { odmax<-rep(odmax,nrow(Y[[1]])) }
 if(symmetric){ Xcol<-Xrow ; rvar<-cvar<-nvar }
 
 # construct design matrix    
-n<-nrow(Y[[1]])
-pr<-ncol(Xrow[[1]])
-pc<-ncol(Xcol[[1]])
-pd<-dim(Xdyad[[1]])[3]
+pr<-ifelse(is.null(Xrow),0,ncol(Xrow[[1]]))
+pc<-ifelse(is.null(Xcol),0,ncol(Xcol[[1]]))
+pd<-ifelse(is.null(Xdyad),0,dim(Xdyad[[1]])[3])
 
 X<-lapply(1:N, function(t){
-  Xt<-design_array(Xrow[[t]], Xcol[[t]], Xdyad[[t]], intercept, n)
+  Xt<-design_array(Xrow[[t]], Xcol[[t]], Xdyad[[t]], intercept, nrow(Y[[t]]))
 
   # re-add intercept if it was removed
   if(dim(Xt)[3] < sum(pr,pc,pd,intercept) )
@@ -127,6 +163,13 @@ Z<-lapply(Y, function(y){
   }
   })
 
+# row and column means
+#### need to pull out "last" value for every actor's a/b into n vector for prior
+ab<-lapply(Z, function(z){
+  a<-rowMeans(z, na.rm=TRUE) ; b<-colMeans(z, na.rm=TRUE)
+  return( list(a=a,b=b) ) })
+a <- ab[[length(ab)]]$a ; b <- ab[[length(ab)]]$b
+
 # starting values for missing entries  
 Z <- lapply(Z, function(z){
   mu<-mean(z,na.rm=TRUE)
@@ -137,20 +180,20 @@ Z <- lapply(Z, function(z){
   })
 
 # other starting values
-beta<-rep(0,dim(X)[3]) 
+beta<-rep(0,dim(X[[1]])[3]) 
 s2<-1 
 rho<-0
 Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
-U<-V<-matrix(0, nrow(Y[,,1]), R) 
+U<-V<-matrix(0, length(fullActorSet), R) 
 
 
 #  output items
-BETA <- matrix(nrow = 0, ncol = dim(X)[3] - pr*symmetric)
+BETA <- matrix(nrow = 0, ncol = dim(X[[1]])[3] - pr*symmetric)
 VC<-matrix(nrow=0,ncol=5-3*symmetric) 
 UVPS <- U %*% t(V) * 0 
-APS<-BPS<- rep(0,nrow(Y[,,1]))  
-YPS<-array(0,dim=dim(Y)) ; dimnames(YPS)<-dimnames(Y)
-GOF<-matrix(rowMeans(apply(Y,3,gofstats)),1,4)  
+APS<-BPS<- rep(0,length(fullActorSet))  
+YPS <- lapply(Y, function(y){ y*0 })
+GOF<-matrix(rowMeans( do.call('cbind', lapply(Y, function(y){ gofstats(y) }) ) ),1,4)  
 rownames(GOF)<-"obs"
 colnames(GOF)<- c("sd.rowmean","sd.colmean","dyad.dep","triad.dep")
 names(APS)<-names(BPS)<-rownames(U)<-rownames(V)<-rownames(Y[,,1])
@@ -159,7 +202,7 @@ names(APS)<-names(BPS)<-rownames(U)<-rownames(V)<-rownames(Y[,,1])
 if(!symmetric)
 { 
 colnames(VC) <- c("va", "cab", "vb", "rho", "ve") 
-colnames(BETA) <- dimnames(X)[[3]] 
+colnames(BETA) <- dimnames(X[[1]])[[3]] 
 }   
 
 # names of parameters, symmetric case
@@ -167,7 +210,7 @@ if(symmetric)
 { 
 colnames(VC) <- c("va", "ve")  
 rb<-intercept+seq(1,pr,length=pr) ; cb<-intercept+pr+seq(1,pr,length=pr)
-bnames<-dimnames(X)[[3]]
+bnames<-dimnames(X[[1]])[[3]]
 bni<-bnames[1*intercept] 
 bnn<-gsub("row",bnames[rb],replacement="node") 
 bnd<-bnames[-c(1*intercept,rb,cb)]
