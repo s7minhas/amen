@@ -1,6 +1,7 @@
 rm(list=ls())
 library(devtools) ; devtools::install_github('s7minhas/amen')
 library(amen)
+library(rbenchmark)
 
 ############################################################
 ############################################################
@@ -14,8 +15,32 @@ library(amen)
 
 ############################################################
 ############################################################
+## Running with changing actor composition
+
+# load data
+data(YX_bin_long) ; data(YX_bin_list) # same as other but replicates are stored in list
+
+# randomly delete some nodes
+yL = YX_bin_list$Y
+xDyad = YX_bin_list$X
+actors = rownames(yL[[1]])
+
+set.seed(6886) ; toRem = sample(1:length(actors), 5)
+yL[[1]] = yL[[1]][-toRem,-toRem]
+xDyad[[1]] = xDyad[[1]][-toRem,-toRem,]
+
+# run mod
+fitList<-ame_repL(yL,xDyad,R=2,
+	model='bin',
+	burn=10,nscan=100,odens=1,plot=FALSE, print=FALSE)
+############################################################
+############################################################
+
+############################################################
+############################################################
 ## Do no harm: Make sure that results from modified functions are the same as original
 
+##############################
 # test to make sure they return the same results
 runTests <- function(orig, modded){
 	if(round(sum(orig$BETA-modded$BETA),10)!=0){ stop("BETA results don't match.") }
@@ -30,6 +55,7 @@ runTests <- function(orig, modded){
 	for(t in 1:N){ if(round(sum(orig$EZ[,,t]-modded$EZ[[t]]),10)!=0){ stop("EZ results don't match.") } }
 	for(t in 1:N){ if(round(sum(orig$YPM[,,t]-modded$YPM[[t]],na.rm=TRUE),10)!=0){ stop("YPM results don't match.") } }
 }
+##############################
 
 ##############################
 # load data
@@ -125,7 +151,7 @@ data(coldwar)
 Y=sign( coldwar$cc ) ; n=nrow(Y) ; t=dim(Y)[3]
 # nodal covariates
 Xn <- array(NA,dim=c(n,2,t),dimnames=list(rownames(Y),c('lgdp','polity'),NULL))
-for(x in 1:t){ Xn[,'lgdp',t] <- log(coldwar$gdp[,t]) ; Xn[,'polity',t] <- coldwar$polity[,t] }
+for(x in 1:t){ Xn[,'lgdp',x] <- log(coldwar$gdp[,x]) ; Xn[,'polity',x] <- coldwar$polity[,x] }
 # dyadic covariates
 Xd<-array(dim=c(nrow(Y),nrow(Y),1,t),dimnames=list(rownames(Y),rownames(Y),'ldist',NULL))
 Xd[,,'ldist',] <- log(coldwar$distance)
@@ -135,21 +161,14 @@ xNodeL <- lapply(1:t, function(x){ Xn[,,x] })
 xDyadL <- lapply(1:t, function(x){ array(Xd[,,,x],dim=c(n,n,1),dimnames=list(rownames(Y),rownames(Y),'ldist')) })
 
 # ordinal ame_rep with symmetric=TRUE, R=1
-fitOrig<-ame(Y,Xd,Xn,R=1,
+fitOrig<-ame_rep(Y,Xd,Xn,R=1,
 	model="ord",symmetric=TRUE,
-	burn=5,nscan=5,odens=1)
-fitList<-ame(yL,xDyadL,xNodeL,R=1,
+	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
+fitList<-ame_repL(yL,xDyadL,xNodeL,R=1,
 	model="ord",symmetric=TRUE,
-	burn=5,nscan=5,odens=1)
+	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
 runTests(fitOrig,fitList) # if nothing returned that's good.
 ##############################
-
-############################################################
-############################################################
-
-############################################################
-############################################################
-## Computational improvement from using lists
 
 ############################################################
 ############################################################
