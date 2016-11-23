@@ -306,7 +306,9 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     # update Z
     EZ <- lapply(1:N, function(t){
       tActors <- rownames(Y[[t]])
-      ez<-Xbeta(X[[t]], beta)+ outer(a[tActors], b[tActors],"+")+ U[tActors,]%*%t(V[tActors,])
+      xT <- array( X[[t]], dim=c( length(tActors),length(tActors),dim(X[[t]])[3] ), 
+        dimnames=list( tActors,tActors,dimnames(X[[t]])[[3]] ) )
+      ez<-Xbeta(xT, beta)+ outer(a[tActors], b[tActors],"+")+ U[tActors,]%*%t(V[tActors,])
       return(ez) })
 
     Z <- lapply(1:N, function(t){
@@ -362,7 +364,9 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     {
       E.T <- lapply(1:N, function(t){
         tActors <- rownames(Y[[t]])
-        ez<-Xbeta(X[[t]], beta)+ outer(a[tActors], b[tActors],"+")+ U[tActors,]%*%t(V[tActors,])
+        xT <- array( X[[t]], dim=c( length(tActors),length(tActors),dim(X[[t]])[3] ), 
+          dimnames=list( tActors,tActors,dimnames(X[[t]])[[3]] ) )        
+        ez<-Xbeta(xT, beta)+ outer(a[tActors], b[tActors],"+")+ U[tActors,]%*%t(V[tActors,])
         return( Z[[t]] - ez ) })
       rho<-rrho_mh_repL(E.T, rho,s2)
     }
@@ -377,7 +381,9 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
         dimnames=list(fullActorSet,fullActorSet,names(Y)))
       for(t in 1:N){
         tActors <- rownames(Y[[t]])
-        E[tActors,tActors,t] <- Z[[t]] - ( Xbeta(X[[t]], beta) + outer(a[tActors], b[tActors],"+") )
+        xT <- array( X[[t]], dim=c( length(tActors),length(tActors),dim(X[[t]])[3] ), 
+          dimnames=list( tActors,tActors,dimnames(X[[t]])[[3]] ) )                
+        E[tActors,tActors,t] <- Z[[t]] - ( Xbeta(xT, beta) + outer(a[tActors], b[tActors],"+") )
       }
       EA<-apply(E,c(1,2),mean,na.rm=TRUE)
       shrink<- (s>.5*burn)
@@ -426,7 +432,9 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       # simulate from posterior predictive 
       EZ <- lapply(1:N, function(t){
         tActors <- rownames(Y[[t]])
-        ez<-Xbeta(X[[t]], beta)+ outer(a[tActors], b[tActors],"+")+ U[tActors,]%*%t(V[tActors,])
+        xT <- array( X[[t]], dim=c( length(tActors),length(tActors),dim(X[[t]])[3] ), 
+          dimnames=list( tActors,tActors,dimnames(X[[t]])[[3]] ) )                
+        ez<-Xbeta(xT, beta)+ outer(a[tActors], b[tActors],"+")+ U[tActors,]%*%t(V[tActors,])
         return(ez) })
       if(symmetric){ EZ <- lapply(EZ, function(ez){ (ez+t(ez))/2 }) }
 
@@ -500,7 +508,9 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   YPM<-lapply(YPS, function(yps){yps/nrow(VC)})
   EZ <- lapply(1:N, function(t){
     tActors <- rownames(Y[[t]])
-    ez<-Xbeta(X[[t]], apply(BETA, 2, mean))+ outer(APM[tActors], BPM[tActors],"+")+ UVPM[tActors,tActors]
+    xT <- array( X[[t]], dim=c( length(tActors),length(tActors),dim(X[[t]])[3] ), 
+      dimnames=list( tActors,tActors,dimnames(X[[t]])[[3]] ) )                
+    ez<-Xbeta(xT, apply(BETA, 2, mean))+ outer(APM[tActors], BPM[tActors],"+")+ UVPM[tActors,tActors]
     return(ez) })
   rownames(BETA)<-NULL  
 
