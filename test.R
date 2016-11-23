@@ -10,7 +10,7 @@ burn=5 ; nscan=5 ; odens=1 ; model="bin" ; symmetric=FALSE
 rvar = !(model=="rrl"); cvar = TRUE ; dcor = !symmetric
 nvar=TRUE
 intercept=!is.element(model,c("rrl","ord"))
-odmax=rep(max(apply(Y>0,c(1,3),sum,na.rm=TRUE)),nrow(Y[,,1]))
+# odmax=rep(max(apply(Y>0,c(1,3),sum,na.rm=TRUE)),nrow(Y[,,1]))
 seed=6886
 plot=FALSE ;  print = FALSE ;  gof=TRUE
 
@@ -27,8 +27,11 @@ Xdyad <- lapply(Xdyad, function(x){ dimnames(x)[[1]] <- actors ; dimnames(x)[[2]
 
 
 ################################################################
+# create full frame of actors
+fullActorSet <- unique(unlist(lapply(Y,rownames)))
+
 # reset odmax param
-odmax <- rep( max( unlist( lapply(Y, function(y){ apply(y>0, 1, sum, na.rm=TRUE)  }) ) ), nrow(Y[[1]]) )
+odmax <- rep( max( unlist( lapply(Y, function(y){ apply(y>0, 1, sum, na.rm=TRUE)  }) ) ), length(fullActorSet) )
 
 # set random seed 
 set.seed(seed)
@@ -58,9 +61,6 @@ if(!is.null(Xcol)){
     stop('Actor labels are missing from Xcol.') }
 }
 
-# create full frame of actors
-fullActorSet <- unique(unlist(lapply(Y,rownames)))
-
 # set diag to NA 
 N<-length(Y) ; Y<-lapply(Y, function(y){diag(y)=NA; return(y)})
 
@@ -71,7 +71,7 @@ if(is.element(model, c('bin','cbin'))){ Y<-lapply(Y,function(y){1*(y>0)})}
 if(is.element(model,c("cbin","frn","rrl")))
 {
 odobs<-do.call('cbind',lapply(Y, function(y){ apply(y>0,1,sum,na.rm=TRUE)}))
-if(length(odmax)==1) { odmax<-rep(odmax,nrow(Y[[1]])) } 
+if(length(odmax)==1) { odmax<-rep(odmax,length(fullActorSet)) } 
 }
 
 # some settings for symmetric case
@@ -97,7 +97,6 @@ X<-lapply(1:N, function(t){
 })
 names(X) <- names(Y)
 
-model='rrl'
 # design matrix warnings
 if( is.element( model, c('ord','rrl') ) & sum(pr,pc,pd,intercept)>0 ){
 
@@ -193,8 +192,10 @@ Z<-lapply(missStart,function(x)x$z) ; ab<-do.call('rbind',lapply(1:N,function(t)
 beta<-rep(0,dim(X[[1]])[3]) 
 s2<-1 
 rho<-0
-Sab<-tcrossprod(c(rvar,cvar))*cov(do.call('rbind',lapply(
-  split(ab,rownames(ab)),function(x){x=matrix(x,ncol=3);x[order(x[,3],decreasing=TRUE),1:2][1,]})))
+ab <- do.call('rbind',lapply(
+  split(ab,rownames(ab)),function(x){x=matrix(x,ncol=3);x[order(x[,3],decreasing=TRUE),1:2][1,]}))
+a <- ab[fullActorSet,1] ; b <- ab[fullActorSet,2] ; rm(list='ab')
+Sab<-tcrossprod(c(rvar,cvar))*cov( cbind(a,b) )
 U<-V<-matrix(0, length(fullActorSet), R, dimnames=list(fullActorSet,NULL)) 
 
 #  output items
@@ -206,7 +207,7 @@ YPS <- lapply(Y, function(y){ y*0 })
 GOF<-matrix(rowMeans( do.call('cbind', lapply(Y, function(y){ gofstats(y) }) ) ),1,4)  
 rownames(GOF)<-"obs"
 colnames(GOF)<- c("sd.rowmean","sd.colmean","dyad.dep","triad.dep")
-names(APS)<-names(BPS)<-rownames(U)<-rownames(V)<-rownames(Y[,,1])
+names(APS)<-names(BPS)<-rownames(U)<-rownames(V)<-fullActorSet
 
 # names of parameters, asymmetric case  
 if(!symmetric)
@@ -236,29 +237,33 @@ have_coda<-suppressWarnings(
 s=1
 
 # update Z
-E.nrm<-array(dim=dim(Z))
-for (t in 1:N)
-{
-  EZ<-Xbeta(array(X[,,,t],dim(X)[1:3]), beta)+ outer(a, b,"+")+ U%*%t(V)
-  if(model=="nrm")
-  { 
-    Z[,,t]<-rZ_nrm_fc(Z[,,t],EZ,rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ
-  }
-  if(model=="bin"){ Z[,,t]<-rZ_bin_fc(Z[,,t],EZ,rho,Y[,,t]) }
-  if(model=="ord"){ Z[,,t]<-rZ_ord_fc(Z[,,t],EZ,rho,Y[,,t]) }
-  if(model=="cbin"){Z[,,t]<-rZ_cbin_fc(Z[,,t],EZ,rho,Y[,,t],odmax,odobs)}
-  if(model=="frn")
-  { 
-    Z[,,t]<-rZ_frn_fc(Z[,,t],EZ,rho,Y[,,t],YL[[t]],odmax,odobs)
-  }
-  if(model=="rrl"){ Z[,,t]<-rZ_rrl_fc(Z[,,t],EZ,rho,Y[,,t],YL[[t]]) } 
-}
+EZ <- lapply(1:N, function(t){
+  tActors <- rownames(Y[[t]])
+  ez<-Xbeta(X[[t]], beta)+ outer(a[tActors], b[tActors],"+")+ U[tActors,]%*%t(V[tActors,])
+  return(ez) })
+
+Z <- lapply(1:N, function(t){
+  if(model=="nrm"){ z<-rZ_nrm_fc(Z[[t]],EZ[[t]],rho,s2,Y[[t]]) }
+  if(model=="bin"){ z<-rZ_bin_fc(Z[[t]],EZ[[t]],rho,Y[[t]]) }
+  if(model=="ord"){ z<-rZ_ord_fc(Z[[t]],EZ[[t]],rho,Y[[t]]) }
+  if(model=="cbin"){ z<-rZ_cbin_fc(Z[[t]],EZ[[t]],rho,Y[[t]],odmax,odobs) }
+  if(model=="frn"){ z<-rZ_frn_fc(Z[[t]],EZ[[t]],rho,Y[[t]],YL[[t]],odmax,odobs) }
+  if(model=="rrl"){ z<-rZ_rrl_fc(Z[[t]],EZ[[t]],rho,Y[[t]],YL[[t]]) } 
+  return(z)
+  })
 
 # update s2
-if (model=="nrm") s2<-rs2_rep_fc(E.nrm,rho) 
+if(model=="nrm"){
+  E.nrm <- lapply(1:N, function(t){ return( Z[[t]]-EZ[[t]] ) })  
+  source('~/Research/software/amen/R/rs2_repL_fc.R')
+  s2<-rs2_repL_fc(E.nrm,rho)
+}
   
 # update beta, a b
-tmp <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)
+source('~/Research/software/amen/R/rbeta_ab_repL_fc.R')
+tmp <- rbeta_ab_repL_fc(
+  lapply(Z, function(z){tActors<-rownames(z); return(z - U[tActors,]%*%t(V[tActors,])) }),
+  Sab, rho, X, s2)
 beta <- tmp$beta
 a <- tmp$a * rvar
 b <- tmp$b * cvar 
@@ -267,56 +272,57 @@ if(symmetric){ a<-b<-(a+b)/2 }
 # update Sab - full SRM
 if(rvar & cvar & !symmetric )
 {
-  Sab<-solve(rwish(solve(diag(2)+crossprod(cbind(a,b))),3+nrow(Z[,,1])))
+  Sab<-solve(rwish(solve(diag(2)+crossprod(cbind(a,b))),3+length(fullActorSet) ))
 }
 
 # update Sab - rvar only
 if (rvar & !cvar & !symmetric) 
 {
-  Sab[1, 1] <- 1/rgamma(1, (1 + nrow(Y[,,t]))/2, (1 + sum(a^2))/2)
+  Sab[1, 1] <- 1/rgamma(1, (1 + length(fullActorSet))/2, (1 + sum(a^2))/2)
 }
  
 # update Sab - cvar only 
 if (!rvar & cvar & !symmetric) 
 {
-  Sab[2, 2] <- 1/rgamma(1, (1 + nrow(Y[,,t]))/2, (1 + sum(b^2))/2)
+  Sab[2, 2] <- 1/rgamma(1, (1 + length(fullActorSet))/2, (1 + sum(b^2))/2)
 }
  
 # update Sab - symmetric case
 if(symmetric & nvar)
 {
-  Sab[1,1]<-Sab[2,2]<-1/rgamma(1,(1+nrow(Y))/2,(1+sum(a^2))/2)
+  Sab[1,1]<-Sab[2,2]<-1/rgamma(1,(1+length(fullActorSet))/2,(1+sum(a^2))/2)
   Sab[1,2]<-Sab[2,1]<-.999*Sab[1,1]   
 }
 
 # update rho
 if (dcor) 
 {
-  E.T<-array(dim=dim(Z))
-  for (t in 1:N)
-  {
-    E.T[,,t]<-Z[,,t]-(Xbeta(array(X[,,,t],dim(X)[1:3]),beta) + 
-                      outer(a, b, "+") + U %*% t(V))
-  }
-  rho<-rrho_mh_rep(E.T, rho,s2)
+  E.T <- lapply(1:N, function(t){
+    tActors <- rownames(Y[[t]])
+    ez<-Xbeta(X[[t]], beta)+ outer(a[tActors], b[tActors],"+")+ U[tActors,]%*%t(V[tActors,])
+    return( Z[[t]] - ez ) })
+  source('~/Research/software/amen/R/rrho_mh_repL.R')
+  rho<-rrho_mh_repL(E.T, rho,s2)
 }
  
 # shrink rho - symmetric case 
 if(symmetric){ rho<-min(.9999,1-1/sqrt(s)) }
 
-
-
 # update U,V
 if (R > 0)
 {
-  E<-array(dim=dim(Z))
-  for(t in 1:N){E[,,t]<-Z[,,t]-(Xbeta(array(X[,,,t],dim(X)[1:3]),beta)+
-                outer(a, b, "+"))}
+  E <- array(NA, dim=c(length(fullActorSet),length(fullActorSet),N), 
+    dimnames=list(fullActorSet,fullActorSet,names(Y)))
+  for(t in 1:N){
+    tActors <- rownames(Y[[t]])
+    E[tActors,tActors,t] <- Z[[t]] - ( Xbeta(X[[t]], beta) + outer(a[tActors], b[tActors],"+") )
+  }
+
   shrink<- (s>.5*burn)
 
   if(symmetric)
   { 
-    EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
+    EA<-apply(E,c(1,2),mean,na.rm=TRUE) ; EA<-.5*(EA+t(EA))
     UV<-rUV_sym_fc(EA, U, V, s2/dim(E)[3],shrink) 
   }
   if(!symmetric){UV<-rUV_rep_fc(E, U, V,rho, s2,shrink) }

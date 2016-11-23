@@ -210,7 +210,7 @@ s=1
     }
     if(model=="rrl"){ Z[,,t]<-rZ_rrl_fc(Z[,,t],EZ,rho,Y[,,t],YL[[t]]) } 
   }
-  
+
   # update s2
   if (model=="nrm") s2<-rs2_rep_fc(E.nrm,rho) 
   
@@ -218,189 +218,189 @@ s=1
   tmp <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)
   beta <- tmp$beta
   a <- tmp$a * rvar
-  b <- tmp$b * cvar 
+  b <- tmp$b * cvar
   if(symmetric){ a<-b<-(a+b)/2 }
-  
+
   # update Sab - full SRM
   if(rvar & cvar & !symmetric )
   {
     Sab<-solve(rwish(solve(diag(2)+crossprod(cbind(a,b))),3+nrow(Z[,,1])))
   }
-  
+
   # update Sab - rvar only
-  if (rvar & !cvar & !symmetric) 
+  if (rvar & !cvar & !symmetric)
   {
     Sab[1, 1] <- 1/rgamma(1, (1 + nrow(Y[,,t]))/2, (1 + sum(a^2))/2)
   }
-  
-  # update Sab - cvar only 
-  if (!rvar & cvar & !symmetric) 
+
+  # update Sab - cvar only
+  if (!rvar & cvar & !symmetric)
   {
     Sab[2, 2] <- 1/rgamma(1, (1 + nrow(Y[,,t]))/2, (1 + sum(b^2))/2)
   }
-  
+
   # update Sab - symmetric case
   if(symmetric & nvar)
   {
     Sab[1,1]<-Sab[2,2]<-1/rgamma(1,(1+nrow(Y))/2,(1+sum(a^2))/2)
-    Sab[1,2]<-Sab[2,1]<-.999*Sab[1,1]   
+    Sab[1,2]<-Sab[2,1]<-.999*Sab[1,1]
   }
-  
+
   # update rho
-  if (dcor) 
+  if (dcor)
   {
     E.T<-array(dim=dim(Z))
     for (t in 1:N)
     {
-      E.T[,,t]<-Z[,,t]-(Xbeta(array(X[,,,t],dim(X)[1:3]),beta) + 
+      E.T[,,t]<-Z[,,t]-(Xbeta(array(X[,,,t],dim(X)[1:3]),beta) +
                           outer(a, b, "+") + U %*% t(V))
     }
     rho<-rrho_mh_rep(E.T, rho,s2)
   }
-  
-  # shrink rho - symmetric case 
+
+  # shrink rho - symmetric case
   if(symmetric){ rho<-min(.9999,1-1/sqrt(s)) }
-  
-  
-  
+
+
+
   # update U,V
-  if (R > 0)
-  {
+  # if (R > 0)
+  # {
     E<-array(dim=dim(Z))
     for(t in 1:N){E[,,t]<-Z[,,t]-(Xbeta(array(X[,,,t],dim(X)[1:3]),beta)+
                                     outer(a, b, "+"))}
     shrink<- (s>.5*burn)
-    
-    if(symmetric)
-    { 
+
+    # if(symmetric)
+    # {
       EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
-      UV<-rUV_sym_fc(EA, U, V, s2/dim(E)[3],shrink) 
-    }
+      UV<-rUV_sym_fc(EA, U, V, s2/dim(E)[3],shrink)
+    # }
     if(!symmetric){UV<-rUV_rep_fc(E, U, V,rho, s2,shrink) }
-    
+
     U<-UV$U ; V<-UV$V
-  }
-  
+  # }
+
   # burn-in countdown
   if(s%%odens==0&s<=burn){cat(round(100*s/burn,2)," pct burnin complete \n")}
-  
+
   # save parameter values and monitor the MC
-  if(s%%odens==0 & s>burn) 
-  { 
-    # save BETA and VC - symmetric case 
-    if(symmetric) 
+  if(s%%odens==0 & s>burn)
+  {
+    # save BETA and VC - symmetric case
+    if(symmetric)
     {
       br<-beta[rb] ; bc<-beta[cb] ; bn<-(br+bc)/2
       sbeta<-c(beta[1*intercept],bn,beta[-c(1*intercept,rb,cb)] )
-      BETA<-rbind(BETA,sbeta)  
-      
-      VC<-rbind(VC,c(Sab[1,1],s2) ) 
+      BETA<-rbind(BETA,sbeta)
+
+      VC<-rbind(VC,c(Sab[1,1],s2) )
     }
-    
-    # save BETA and VC - asymmetric case 
+
+    # save BETA and VC - asymmetric case
     if(!symmetric)
     {
       BETA<-rbind(BETA, beta)
-      VC<-rbind(VC, c(Sab[upper.tri(Sab, diag = T)], rho,s2)) 
+      VC<-rbind(VC, c(Sab[upper.tri(Sab, diag = T)], rho,s2))
     }
-    
+
     # update posterior sums of random effects
     UVPS <- UVPS + U %*% t(V)
     APS <- APS + a
-    BPS <- BPS + b 
-    
-    # simulate from posterior predictive 
+    BPS <- BPS + b
+
+    # simulate from posterior predictive
     EZ<-Ys<-array(dim=dim(Z))
     for (t in 1:N)
     {
-      EZ[,,t]<-Xbeta(array(X[,,,t],dim(X)[1:3]),beta) + 
+      EZ[,,t]<-Xbeta(array(X[,,,t],dim(X)[1:3]),beta) +
         outer(a, b, "+") + U %*% t(V)
       if(symmetric){ EZ[,,t]<-(EZ[,,t]+t(EZ[,,t]))/2 }
-      
+
       if(model=="bin"){ Ys[,,t]<-simY_bin(EZ[,,t],rho) }
       if(model=="cbin"){ Ys[,,t]<-1*(simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t])>0)}
       if(model=="frn"){ Ys[,,t]<-simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t]) }
       if(model=="rrl"){ Ys[,,t]<-simY_rrl(EZ[,,t],rho,odobs,YO=Y[,,t] ) }
       if(model=="nrm"){ Ys[,,t]<-simY_nrm(EZ[,,t],rho,s2) }
       if(model=="ord"){ Ys[,,t]<-simY_ord(EZ[,,t],rho,Y[,,t]) }
-      
+
       if(symmetric)
-      {  
+      {
         Yst<-Ys[,,t] ; Yst[lower.tri(Yst)]<-0 ; Ys[,,t]<-Yst+t(Yst)
       }
-      
-    } 
-    
+
+    }
+
     # update posterior sum
     YPS<-YPS+Ys
-    
+
     # save posterior predictive GOF stats
     if(gof){Ys[is.na(Y)]<-NA ;GOF<-rbind(GOF,rowMeans(apply(Ys,3,gofstats)))}
-    
-    # print MC progress 
-    if(print) 
+
+    # print MC progress
+    if(print)
     {
       cat(s,round(apply(BETA,2,mean),2),":",round(apply(VC,2,mean),2),"\n")
-      if (have_coda & nrow(VC) > 3 & length(beta)>0) 
+      if (have_coda & nrow(VC) > 3 & length(beta)>0)
       {
         cat(round(coda::effectiveSize(BETA)), "\n")
       }
     }
-    
+
     # plot MC progress
-    if(plot) 
+    if(plot)
     {
       # plot VC
       par(mfrow=c(1+2*gof,2),mar=c(3,3,1,1),mgp=c(1.75,0.75,0))
       mVC <- apply(VC, 2, median)
       matplot(VC, type = "l", lty = 1)
-      abline(h = mVC, col = 1:length(mVC)) 
-      
+      abline(h = mVC, col = 1:length(mVC))
+
       # plot BETA
-      if(length(beta)>0) 
+      if(length(beta)>0)
       {
         mBETA <- apply(BETA, 2, median)
         matplot(BETA, type = "l", lty = 1, col = 1:length(mBETA))
         abline(h = mBETA, col = 1:length(mBETA))
-        abline(h = 0, col = "gray") 
-      } 
-      
+        abline(h = 0, col = "gray")
+      }
+
       # plot GOF
       if(gof)
       {
         for(k in 1:4)
         {
           hist(GOF[-1,k],xlim=range(GOF[,k]),main="",prob=TRUE,
-               xlab=colnames(GOF)[k],col="lightblue",ylab="",yaxt="n")  
-          abline(v=GOF[1,k],col="red") 
+               xlab=colnames(GOF)[k],col="lightblue",ylab="",yaxt="n")
+          abline(v=GOF[1,k],col="red")
         }
-      } 
-      
-    } 
-    
-    
-  } 
-  
-  
-} # end MCMC  
+      }
 
-# output 
+    }
 
-# posterior means 
+
+  }
+
+
+} # end MCMC
+
+# output
+
+# posterior means
 APM<-APS/nrow(VC)
-BPM<-BPS/nrow(VC)  
+BPM<-BPS/nrow(VC)
 UVPM<-UVPS/nrow(VC)
-YPM<-YPS/nrow(VC) 
-EZ<-array(dim=dim(Y)) 
+YPM<-YPS/nrow(VC)
+EZ<-array(dim=dim(Y))
 for (t in 1:N)
 {
-  EZ[,,t]<-Xbeta(array(X[,,,t],dim(X)[1:3]),apply(BETA,2,mean)) + 
-    outer(APM,BPM,"+")+UVPM 
+  EZ[,,t]<-Xbeta(array(X[,,,t],dim(X)[1:3]),apply(BETA,2,mean)) +
+    outer(APM,BPM,"+")+UVPM
 }
 
 names(APM)<-names(BPM)<-rownames(UVPM)<-colnames(UVPM)<-dimnames(Y)[[1]]
-dimnames(YPM)<-dimnames(EZ)<-dimnames(Y) 
-rownames(BETA)<-NULL  
+dimnames(YPM)<-dimnames(EZ)<-dimnames(Y)
+rownames(BETA)<-NULL
 
 # asymmetric output
 if(!symmetric)
@@ -410,25 +410,25 @@ if(!symmetric)
   V<-UDV$v[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
   rownames(U)<-rownames(V)<-dimnames(Y)[[1]]
   fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
-              YPM=YPM,GOF=GOF) 
+              YPM=YPM,GOF=GOF)
 }
 
 # symmetric output
-if(symmetric) 
+if(symmetric)
 {
-  ULUPM<-UVPM 
-  eULU<-eigen(ULUPM) 
+  ULUPM<-UVPM
+  eULU<-eigen(ULUPM)
   eR<- which( rank(-abs(eULU$val),ties.method="first") <= R )
   U<-eULU$vec[,seq(1,R,length=R),drop=FALSE]
-  L<-eULU$val[eR]   
+  L<-eULU$val[eR]
   rownames(U)<-rownames(ULUPM)<-colnames(ULUPM)<-dimnames(Y)[[1]]
   for(t in 1:N)
-  { 
+  {
     EZ[,,t]<-.5*(EZ[,,t]+t(EZ[,,t]))
     YPM[,,t]<-.5*(YPM[,,t]+t(YPM[,,t]))
-  }  
+  }
   fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
             YPM=YPM,GOF=GOF)
-} 
+}
 
 class(fit) <- "ame"
