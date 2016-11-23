@@ -191,7 +191,7 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     # design matrix warning for rrl and ord
     if( any( apply(xArr,c(3),function(x){var(c(x),na.rm=TRUE)})==0 ) ){
       cat("WARNING: an intercept is not estimable using this procedure ","\n")
-    } } ; rm(list=c('t','v','x','missing','xArr'))
+    } ; rm(list=c('t','v','x','missing','xArr')) ; } 
 
   # construct matrix of ranked nominations for frn, rrl   
   if(is.element(model,c("frn","rrl")))
