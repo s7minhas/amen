@@ -23,46 +23,60 @@ set.seed(6886) ; actors <- as.character( sample(300:700,size=50,replace=FALSE) )
 Y <- lapply(Y, function(y){ dimnames(y)[[1]] <- actors ; dimnames(y)[[2]] <- actors ; return(y) })
 Xdyad <- lapply(Xdyad, function(x){ dimnames(x)[[1]] <- actors ; dimnames(x)[[2]] <- actors ; return(x) })
 
-# change actor composition
-
+YX_bin_list <- list(Y=Y, X=Xdyad)
+save(YX_bin_list, file='~/Research/software/amen/data/YX_bin_list.RData')
 
 ################################################################
+# set random seed 
+set.seed(seed)
+
 # create full frame of actors
 fullActorSet <- unique(unlist(lapply(Y,rownames)))
 
 # reset odmax param
 odmax <- rep( max( unlist( lapply(Y, function(y){ apply(y>0, 1, sum, na.rm=TRUE)  }) ) ), length(fullActorSet) )
 
-# set random seed 
-set.seed(seed)
-
-# make sure actor labels are provided
-dvRowLabCnt <- do.call('sum', lapply(Y, function(y) !is.null( dimnames(y)[[1]] ) ) )
-dvColLabCnt <- do.call('sum', lapply(Y, function(y) !is.null( dimnames(y)[[2]] ) ) )
-if( dvRowLabCnt!=length(Y) | dvColLabCnt!=length(Y) ){
-  stop('Actor labels are missing from Y.') }
-
-if(!is.null(Xdyad)){
-xDyadRowLabCnt <- do.call('sum', lapply(Xdyad, function(x) !is.null( dimnames(x)[[1]] ) ) )
-xDyadvColLabCnt <- do.call('sum', lapply(Xdyad, function(x) !is.null( dimnames(x)[[2]] ) ) )
-if( xDyadRowLabCnt!=length(Y) | xDyadvColLabCnt!=length(Y) ){
-  stop('Actor labels are missing from Xdyad.') }
-}
-
-if(!is.null(Xrow)){
-  xRowLabCnt <- do.call('sum', lapply(Xrow, function(x) !is.null(rownames(x)) ))
-  if( xRowLabCnt != length(Y) ){
-    stop('Actor labels are missing from Xrow.') }
-}
-
-if(!is.null(Xcol)){
-  xColLabCnt <- do.call('sum', lapply(Xcol, function(x) !is.null(rownames(x)) ))
-  if( xColLabCnt != length(Y) ){
-    stop('Actor labels are missing from Xcol.') }
-}
+# make sure inputted data is formatted correctly
+if( !is.list(Y) ){ stop('Y needs to be inputted as a list.') }
+# if( is.element(FALSE, unlist(lapply(Y, function(y){c(class(y)=='matrix', nrow(y) == ncol(y))}))) ){
+#   stop('List objects in Y need to be inputted as n x n matrices.') }
+if(!is.null(Xdyad)){ if( !is.list(Xdyad) ){ stop('Xdyad needs to be inputted as a list.') } }
+if(!is.null(Xrow)){ if( !is.list(Xrow) ){ stop('Xrow needs to be inputted as a list.') } }
+if(!is.null(Xcol)){ if( !is.list(Xcol) ){ stop('Xcol needs to be inputted as a list.') } }
 
 # set diag to NA 
 N<-length(Y) ; Y<-lapply(Y, function(y){diag(y)=NA; return(y)})
+
+# make sure actor labels are provided
+if( do.call('sum', lapply(Y, function(y) !is.null( rownames(y) ) ) )!=length(Y) | 
+  do.call('sum', lapply(Y, function(y) !is.null( colnames(y) ) ) )!=length(Y) ){
+  stop('Actor labels need to be provided for all Y list objects.') }
+
+if(!is.null(Xdyad)){
+if( do.call('sum', lapply(Xdyad, function(x) !is.null( dimnames(x)[[1]] ) ) )!=length(Y) | 
+  do.call('sum', lapply(Xdyad, function(x) !is.null( dimnames(x)[[2]] ) ) )!=length(Y) ){
+  stop('Actor labels need to be provided for all Xdyad list objects.') }
+}
+
+if(!is.null(Xrow)){
+  if( do.call('sum', lapply(Xrow, function(x) !is.null(rownames(x)) )) != length(Y) ){
+    stop('Actor labels need to be provided for all Xrow list objects.') }
+}
+
+if(!is.null(Xcol)){
+  if( do.call('sum', lapply(Xcol, function(x) !is.null(rownames(x)) )) != length(Y) ){
+    stop('Actor labels need to be provided for all Xcol list objects.') }
+}
+
+# make sure actor labels appear in same order across objects
+for(t in 1:N){
+  tNames <- rownames(Y[[t]]) ; check <- identical(tNames, colnames(Y[[t]]))
+  if(!is.null(Xdyad)){ check <- c(check, identical( tNames, dimnames(Xdyad[[t]])[[1]] )) }
+  if(!is.null(Xdyad)){ check <- c(check, identical( tNames, dimnames(Xdyad[[t]])[[2]] )) }  
+  if(!is.null(Xrow)){ check <- c(check, identical(tNames, rownames(Xrow[[t]]) )) }
+  if(!is.null(Xcol)){ check <- c(check, identical(tNames, rownames(Xcol[[t]]) )) }
+  if( sum(check)/length(check) != 1 ){
+    stop('Actor labels are not identical across inputted data within time periods.') } } ; rm(list=c('tNames','check','t'))
 
 # force binary if binary model specified 
 if(is.element(model, c('bin','cbin'))){ Y<-lapply(Y,function(y){1*(y>0)})}
@@ -471,7 +485,7 @@ rownames(U)<-rownames(ULUPM)
 for(t in 1:N)
 { 
   EZ[[t]]<-.5*(EZ[[t]]+t(EZ[[t]]))
-  YPM[[t]]<-.5*(YPM[[,,]t]+t(YPM[[t]]))
+  YPM[[t]]<-.5*(YPM[[t]]+t(YPM[[t]]))
 }  
 fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
           YPM=YPM,GOF=GOF)
