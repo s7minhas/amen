@@ -264,29 +264,29 @@ s=1
 
 
   # update U,V
-  # if (R > 0)
-  # {
+  if (R > 0)
+  {
     E<-array(dim=dim(Z))
     for(t in 1:N){E[,,t]<-Z[,,t]-(Xbeta(array(X[,,,t],dim(X)[1:3]),beta)+
                                     outer(a, b, "+"))}
     shrink<- (s>.5*burn)
 
-    # if(symmetric)
-    # {
+    if(symmetric)
+    {
       EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
       UV<-rUV_sym_fc(EA, U, V, s2/dim(E)[3],shrink)
-    # }
+    }
     if(!symmetric){UV<-rUV_rep_fc(E, U, V,rho, s2,shrink) }
 
     U<-UV$U ; V<-UV$V
-  # }
+  }
 
   # burn-in countdown
   if(s%%odens==0&s<=burn){cat(round(100*s/burn,2)," pct burnin complete \n")}
 
   # save parameter values and monitor the MC
-  if(s%%odens==0 & s>burn)
-  {
+  # if(s%%odens==0 & s>burn)
+  # {
     # save BETA and VC - symmetric case
     if(symmetric)
     {

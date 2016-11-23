@@ -317,15 +317,18 @@ if (R > 0)
     tActors <- rownames(Y[[t]])
     E[tActors,tActors,t] <- Z[[t]] - ( Xbeta(X[[t]], beta) + outer(a[tActors], b[tActors],"+") )
   }
-
+  EA<-apply(E,c(1,2),mean,na.rm=TRUE)
   shrink<- (s>.5*burn)
 
   if(symmetric)
   { 
-    EA<-apply(E,c(1,2),mean,na.rm=TRUE) ; EA<-.5*(EA+t(EA))
+    EA<-.5*(EA+t(EA))
     UV<-rUV_sym_fc(EA, U, V, s2/dim(E)[3],shrink) 
   }
-  if(!symmetric){UV<-rUV_rep_fc(E, U, V,rho, s2,shrink) }
+  if(!symmetric){
+    for(t in 1:N){ E[,,t][is.na(E[,,t])] <- EA[is.na(E[,,t])] }
+    UV<-rUV_rep_fc(E, U, V,rho, s2,shrink)
+  }
 
   U<-UV$U ; V<-UV$V
 }
@@ -334,8 +337,8 @@ if (R > 0)
 if(s%%odens==0&s<=burn){cat(round(100*s/burn,2)," pct burnin complete \n")}
 
 # save parameter values and monitor the MC
-if(s%%odens==0 & s>burn) 
-{ 
+# if(s%%odens==0 & s>burn) 
+# { 
   # save BETA and VC - symmetric case 
   if(symmetric) 
   {
@@ -359,32 +362,31 @@ if(s%%odens==0 & s>burn)
   BPS <- BPS + b 
     
   # simulate from posterior predictive 
-  EZ<-Ys<-array(dim=dim(Z))
-  for (t in 1:N)
-  {
-    EZ[,,t]<-Xbeta(array(X[,,,t],dim(X)[1:3]),beta) + 
-              outer(a, b, "+") + U %*% t(V)
-    if(symmetric){ EZ[,,t]<-(EZ[,,t]+t(EZ[,,t]))/2 }
+  EZ <- lapply(1:N, function(t){
+    tActors <- rownames(Y[[t]])
+    ez<-Xbeta(X[[t]], beta)+ outer(a[tActors], b[tActors],"+")+ U[tActors,]%*%t(V[tActors,])
+    return(ez) })
+  if(symmetric){ EZ <- lapply(EZ, function(ez){ (ez+t(ez))/2 }) }
 
-    if(model=="bin"){ Ys[,,t]<-simY_bin(EZ[,,t],rho) }
-    if(model=="cbin"){ Ys[,,t]<-1*(simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t])>0)}
-    if(model=="frn"){ Ys[,,t]<-simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t]) }
-    if(model=="rrl"){ Ys[,,t]<-simY_rrl(EZ[,,t],rho,odobs,YO=Y[,,t] ) }
-    if(model=="nrm"){ Ys[,,t]<-simY_nrm(EZ[,,t],rho,s2) }
-    if(model=="ord"){ Ys[,,t]<-simY_ord(EZ[,,t],rho,Y[,,t]) }
-
-    if(symmetric)
-    {  
-      Yst<-Ys[,,t] ; Yst[lower.tri(Yst)]<-0 ; Ys[,,t]<-Yst+t(Yst)
-    }
-
-  } 
+  Ys <- lapply(1:N, function(t){
+    if(model=="bin"){ ys<-simY_bin(EZ[[t]],rho) }
+    if(model=="cbin"){ ys<-1*(simY_frn(EZ[[t]],rho,odmax,YO=Y[[t]])>0)}
+    if(model=="frn"){ ys<-simY_frn(EZ[[t]],rho,odmax,YO=Y[[t]]) }
+    if(model=="rrl"){ ys<-simY_rrl(EZ[[t]],rho,odobs,YO=Y[[t]] ) }
+    if(model=="nrm"){ ys<-simY_nrm(EZ[[t]],rho,s2) }
+    if(model=="ord"){ ys<-simY_ord(EZ[[t]],rho,Y[[t]]) }
+    if(symmetric){ Yst<-ys ; Yst[lower.tri(Yst)]<-0 ; ys<-Yst+t(Yst) }
+    return(ys)
+    })
 
   # update posterior sum
-  YPS<-YPS+Ys
+  YPS<-lapply(1:N, function(t){ YPS[[t]]+Ys[[t]] } )
 
   # save posterior predictive GOF stats
-  if(gof){Ys[is.na(Y)]<-NA ;GOF<-rbind(GOF,rowMeans(apply(Ys,3,gofstats)))}
+  if(gof){
+    Ys <- lapply(1:N, function(t){ ys<-Ys[[t]] ; ys[is.na(Y[[t]])]<-NA ; return(ys) })
+    GOF <- rbind(GOF, rowMeans(do.call('cbind', lapply(Ys, gofstats))))
+  }
    
   # print MC progress 
   if(print) 
@@ -439,16 +441,11 @@ if(s%%odens==0 & s>burn)
 APM<-APS/nrow(VC)
 BPM<-BPS/nrow(VC)  
 UVPM<-UVPS/nrow(VC)
-YPM<-YPS/nrow(VC) 
-EZ<-array(dim=dim(Y)) 
-for (t in 1:N)
-{
-EZ[,,t]<-Xbeta(array(X[,,,t],dim(X)[1:3]),apply(BETA,2,mean)) + 
-  outer(APM,BPM,"+")+UVPM 
-}
-
-names(APM)<-names(BPM)<-rownames(UVPM)<-colnames(UVPM)<-dimnames(Y)[[1]]
-dimnames(YPM)<-dimnames(EZ)<-dimnames(Y) 
+YPM<-lapply(YPS, function(yps){yps/nrow(VC)})
+EZ <- lapply(1:N, function(t){
+  tActors <- rownames(Y[[t]])
+  ez<-Xbeta(X[[t]], apply(BETA, 2, mean))+ outer(APM[tActors], BPM[tActors],"+")+ UVPM[tActors,tActors]
+  return(ez) })
 rownames(BETA)<-NULL  
 
 # asymmetric output
@@ -457,7 +454,7 @@ if(!symmetric)
 UDV<-svd(UVPM)
 U<-UDV$u[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
 V<-UDV$v[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
-rownames(U)<-rownames(V)<-dimnames(Y)[[1]]
+rownames(U)<-rownames(V)<-rownames(UVPM)
 fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
             YPM=YPM,GOF=GOF) 
 }
@@ -470,11 +467,11 @@ eULU<-eigen(ULUPM)
 eR<- which( rank(-abs(eULU$val),ties.method="first") <= R )
 U<-eULU$vec[,seq(1,R,length=R),drop=FALSE]
 L<-eULU$val[eR]   
-rownames(U)<-rownames(ULUPM)<-colnames(ULUPM)<-dimnames(Y)[[1]]
+rownames(U)<-rownames(ULUPM)
 for(t in 1:N)
 { 
-  EZ[,,t]<-.5*(EZ[,,t]+t(EZ[,,t]))
-  YPM[,,t]<-.5*(YPM[,,t]+t(YPM[,,t]))
+  EZ[[t]]<-.5*(EZ[[t]]+t(EZ[[t]]))
+  YPM[[t]]<-.5*(YPM[[,,]t]+t(YPM[[t]]))
 }  
 fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
           YPM=YPM,GOF=GOF)
