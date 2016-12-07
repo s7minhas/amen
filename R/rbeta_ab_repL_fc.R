@@ -16,7 +16,7 @@
 #' @param s2 dyadic variance
 #' @return \item{beta}{regression coefficients} \item{a}{additive row effects}
 #' \item{b}{additive column effects}
-#' @author Peter Hoff, Yanjun He
+#' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @export rbeta_ab_repL_fc
 
 rbeta_ab_repL_fc <-

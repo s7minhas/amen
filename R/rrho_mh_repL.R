@@ -10,7 +10,7 @@
 #' @param rho current value of rho
 #' @param s2 current value of s2
 #' @return a new value of rho
-#' @author Peter Hoff, Yanjun He
+#' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @export rrho_mh_repL
 rrho_mh_repL <-
   function(E.T,rho,s2=1)

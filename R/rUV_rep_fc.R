@@ -16,7 +16,7 @@
 #' @param shrink adaptively shrink the factors with a hierarchical prior
 #'
 #' @return \item{U}{a new value of U} \item{V}{a new value of V}
-#' @author Peter Hoff, Yanjun He
+#' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @export rUV_rep_fc
 rUV_rep_fc <-
   function(E.T,U,V,rho,s2=1,shrink=TRUE)

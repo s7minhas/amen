@@ -70,7 +70,7 @@
 #' matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
 #' \item{GOF}{observed (first row) and posterior predictive (remaining rows)
 #' values of four goodness-of-fit statistics}
-#' @author Peter Hoff, Yanjun He
+#' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @examples
 #' 
 #' data(YX_bin_list) 

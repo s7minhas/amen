@@ -9,7 +9,7 @@
 #' is a square residual relational matrix
 #' @param rho current value of rho
 #' @return a new value of s2
-#' @author Peter Hoff, Yanjun He
+#' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @export rs2_repL_fc
 rs2_repL_fc <-
   function(E.T,rho)
