@@ -1,111 +1,111 @@
-# #' AME model fitting routine for replicated relational data
-# #' 
-# #' An MCMC routine providing a fit to an additive and multiplicative effects
-# #' (AME) regression model to replicated relational data of
-# #' various types. 
-# #' 
-# #' This command provides posterior inference for parameters in AME models of
-# #' independent replicated relational data, assuming one of six possible data
-# #' types/models:
-# #' 
-# #' "nrm": A normal AME model.
-# #' 
-# #' "bin": A binary probit AME model.
-# #' 
-# #' "ord": An ordinal probit AME model. An intercept is not identifiable in this
-# #' model.
-# #' 
-# #' "cbin": An AME model for censored binary data.  The value of 'odmax'
-# #' specifies the maximum number of links each row may have.
-# #' 
-# #' "frn": An AME model for fixed rank nomination networks. A higher value of
-# #' the rank indicates a stronger relationship. The value of 'odmax' specifies
-# #' the maximum number of links each row may have.
-# #' 
-# #' "rrl": An AME model based on the row ranks. This is appropriate if the
-# #' relationships across rows are not directly comparable in terms of scale. An
-# #' intercept, row random effects and row regression effects are not estimable
-# #' for this model.
-# #' 
-# #' @usage ame_repL(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(model=="rrl")
-# #' , cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, model="nrm",
-# #' intercept=!is.element(model,c("rrl","ord")),
-# #' symmetric=FALSE,
-# #' odmax=NULL, seed = 1,
-# #' nscan = 10000, burn = 500, odens = 25, plot=TRUE, print = TRUE, gof=TRUE)
-# #' @param Y a T length list of n x n relational matrices, where T corresponds to the number of replicates (over time, for example). See
-# #' model below for various data types.
-# #' @param Xdyad a T length list of n x n x pd arrays of covariates
-# #' @param Xrow a T length list of n x pr matrices of nodal row covariates
-# #' @param Xcol a T length list of n x pc matrices of nodal column covariates
-# #' @param rvar logical: fit row random effects (asymmetric case)?
-# #' @param cvar logical: fit column random effects (asymmetric case)? 
-# #' @param dcor logical: fit a dyadic correlation (asymmetric case)?
-# #' @param nvar logical: fit nodal random effects (symmetric case)? 
-# #' @param R integer: dimension of the multiplicative effects (can be zero)
-# #' @param model character: one of "nrm","bin","ord","cbin","frn","rrl" - see
-# #' the details below
-# #' @param intercept logical: fit model with an intercept?
-# #' @param symmetric logical: Is the sociomatrix symmetric by design?
-# #' @param odmax a scalar integer or vector of length n giving the maximum
-# #' number of nominations that each node may make - used for "frn" and "cbin"
-# #' models
-# #' @param seed random seed
-# #' @param nscan number of iterations of the Markov chain (beyond burn-in)
-# #' @param burn burn in for the Markov chain
-# #' @param odens output density for the Markov chain
-# #' @param plot logical: plot results while running?
-# #' @param print logical: print results while running?
-# #' @param gof logical: calculate goodness of fit statistics?
-# #' @return \item{BETA}{posterior samples of regression coefficients}
-# #' \item{VC}{posterior samples of the variance parameters}
-# #' \item{APM}{posterior mean of additive row effects a} \item{BPM}{posterior
-# #' mean of additive column effects b} \item{U}{posterior mean of multiplicative
-# #' row effects u} 
-# #' \item{V}{posterior mean of multiplicative column effects v (asymmetric case)}
-# #' \item{UVPM}{posterior mean of UV}
-# #' \item{ULUPM}{posterior mean of ULU (symmetric case)} 
-# #' \item{L}{posterior mean of L (symmetric case)} 
-# #'  \item{EZ}{estimate of expectation of Z
-# #' matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
-# #' \item{GOF}{observed (first row) and posterior predictive (remaining rows)
-# #' values of four goodness-of-fit statistics}
-# #' @author Peter Hoff, Yanjun He, Shahryar Minhas
-# #' @examples
-# #' 
-# #' data(YX_bin_list) 
-# #' fit<-ame_repL2(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,model="bin")
-# #' # you should run the Markov chain much longer than this
-# #' 
-# #' @export ame_repL2
-# ame_repL2<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
-#            rvar = !(model=="rrl") , cvar = TRUE, dcor = !symmetric, 
-#            nvar=TRUE, 
-#            R = 0,
-#            model="nrm",
-#            intercept=!is.element(model,c("rrl","ord")), 
-#            symmetric=FALSE, 
-#            odmax=NULL,
-#            seed = 1, nscan = 10000, burn = 500, odens = 25,
-#            plot=TRUE, print = TRUE, gof=TRUE)
-# { 
+#' AME model fitting routine for replicated relational data
+#' 
+#' An MCMC routine providing a fit to an additive and multiplicative effects
+#' (AME) regression model to replicated relational data of
+#' various types. 
+#' 
+#' This command provides posterior inference for parameters in AME models of
+#' independent replicated relational data, assuming one of six possible data
+#' types/models:
+#' 
+#' "nrm": A normal AME model.
+#' 
+#' "bin": A binary probit AME model.
+#' 
+#' "ord": An ordinal probit AME model. An intercept is not identifiable in this
+#' model.
+#' 
+#' "cbin": An AME model for censored binary data.  The value of 'odmax'
+#' specifies the maximum number of links each row may have.
+#' 
+#' "frn": An AME model for fixed rank nomination networks. A higher value of
+#' the rank indicates a stronger relationship. The value of 'odmax' specifies
+#' the maximum number of links each row may have.
+#' 
+#' "rrl": An AME model based on the row ranks. This is appropriate if the
+#' relationships across rows are not directly comparable in terms of scale. An
+#' intercept, row random effects and row regression effects are not estimable
+#' for this model.
+#' 
+#' @usage ame_repL(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(model=="rrl")
+#' , cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, model="nrm",
+#' intercept=!is.element(model,c("rrl","ord")),
+#' symmetric=FALSE,
+#' odmax=NULL, seed = 1,
+#' nscan = 10000, burn = 500, odens = 25, plot=TRUE, print = TRUE, gof=TRUE)
+#' @param Y a T length list of n x n relational matrices, where T corresponds to the number of replicates (over time, for example). See
+#' model below for various data types.
+#' @param Xdyad a T length list of n x n x pd arrays of covariates
+#' @param Xrow a T length list of n x pr matrices of nodal row covariates
+#' @param Xcol a T length list of n x pc matrices of nodal column covariates
+#' @param rvar logical: fit row random effects (asymmetric case)?
+#' @param cvar logical: fit column random effects (asymmetric case)? 
+#' @param dcor logical: fit a dyadic correlation (asymmetric case)?
+#' @param nvar logical: fit nodal random effects (symmetric case)? 
+#' @param R integer: dimension of the multiplicative effects (can be zero)
+#' @param model character: one of "nrm","bin","ord","cbin","frn","rrl" - see
+#' the details below
+#' @param intercept logical: fit model with an intercept?
+#' @param symmetric logical: Is the sociomatrix symmetric by design?
+#' @param odmax a scalar integer or vector of length n giving the maximum
+#' number of nominations that each node may make - used for "frn" and "cbin"
+#' models
+#' @param seed random seed
+#' @param nscan number of iterations of the Markov chain (beyond burn-in)
+#' @param burn burn in for the Markov chain
+#' @param odens output density for the Markov chain
+#' @param plot logical: plot results while running?
+#' @param print logical: print results while running?
+#' @param gof logical: calculate goodness of fit statistics?
+#' @return \item{BETA}{posterior samples of regression coefficients}
+#' \item{VC}{posterior samples of the variance parameters}
+#' \item{APM}{posterior mean of additive row effects a} \item{BPM}{posterior
+#' mean of additive column effects b} \item{U}{posterior mean of multiplicative
+#' row effects u} 
+#' \item{V}{posterior mean of multiplicative column effects v (asymmetric case)}
+#' \item{UVPM}{posterior mean of UV}
+#' \item{ULUPM}{posterior mean of ULU (symmetric case)} 
+#' \item{L}{posterior mean of L (symmetric case)} 
+#'  \item{EZ}{estimate of expectation of Z
+#' matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
+#' \item{GOF}{observed (first row) and posterior predictive (remaining rows)
+#' values of four goodness-of-fit statistics}
+#' @author Peter Hoff, Yanjun He, Shahryar Minhas
+#' @examples
+#' 
+#' data(YX_bin_list) 
+#' fit<-ame_repL2(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,model="bin")
+#' # you should run the Markov chain much longer than this
+#' 
+#' @export ame_repL2
+ame_repL2<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
+           rvar = !(model=="rrl") , cvar = TRUE, dcor = !symmetric, 
+           nvar=TRUE, 
+           R = 0,
+           model="nrm",
+           intercept=!is.element(model,c("rrl","ord")), 
+           symmetric=FALSE, 
+           odmax=NULL,
+           seed = 1, nscan = 10000, burn = 500, odens = 25,
+           plot=TRUE, print = TRUE, gof=TRUE)
+{ 
 
 
-rm(list=ls())
-library(amen)
+# rm(list=ls())
+# library(amen)
 
 # data(YX_bin_long)
 
 # Y=YX_bin_long$Y ; Xdyad=YX_bin_long$X ; Xrow=NULL ;
-Xcol=NULL ; R=2
-burn=5 ; nscan=5 ; odens=1 ; model="bin" ; symmetric=TRUE
-rvar = !(model=="rrl"); cvar = TRUE ; dcor = !symmetric
-nvar=TRUE
-intercept=!is.element(model,c("rrl","ord"))
-intercept=FALSE
-# odmax=rep(max(apply(Y>0,c(1,3),sum,na.rm=TRUE)),nrow(Y[,,1]))
-seed=6886
-plot=FALSE ;  print = FALSE ;  gof=TRUE
+# Xcol=NULL ; R=2
+# burn=1 ; nscan=5 ; odens=1 ; model="bin" ; symmetric=TRUE
+# rvar = !(model=="rrl"); cvar = TRUE ; dcor = !symmetric
+# nvar=TRUE
+# intercept=!is.element(model,c("rrl","ord"))
+# intercept=FALSE
+# # odmax=rep(max(apply(Y>0,c(1,3),sum,na.rm=TRUE)),nrow(Y[,,1]))
+# seed=6886
+# plot=FALSE ;  print = FALSE ;  gof=TRUE
 
 # # restructure Y
 # Y <- lapply(1:dim(YX_bin_long$Y)[3], function(t){YX_bin_long$Y[,,t]})
@@ -127,13 +127,14 @@ plot=FALSE ;  print = FALSE ;  gof=TRUE
 # Xdyad[[2]] = Xdyad[[2]][-which(actors %in% toRem),-which(actors %in% toRem),]
 
 # load buthe milner data
-load('~/Dropbox/Research/netsMatter/replications/mansfield_milner_2012/inputData/amenData.rda')
-Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
+# load('~/Dropbox/Research/netsMatter/replications/mansfield_milner_2012/inputData/amenData.rda')
+# Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   # set random seed 
   set.seed(seed)
 
-  # create full frame of actors
-  actorSet <- sort(unique(unlist(lapply(Y,rownames)))) ; nActors <- length(actorSet)
+  # get actor info
+  actorByYr <- lapply(Y, rownames)
+  actorSet <- sort(unique(unlist( actorByYr ))) ; nActors <- length(actorSet)
 
   # reset odmax param
   odmax <- rep( max( unlist( lapply(Y, function(y){ apply(y>0, 1, sum, na.rm=TRUE)  }) ) ), nActors )
@@ -306,9 +307,9 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     { 
       Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t])) 
       # zyMax <- max(Z[,,t][Y[,,t]==0],na.rm=TRUE)
-      zyMax <- ifelse(sum(Y[,,t]==0, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==0],na.rm=TRUE), 0)
+      zyMax <- ifelse( sum(Y[,,t]==0, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==0],na.rm=TRUE), 0)
       # zyMin <- min(Z[,,t][Y[,,t]==1],na.rm=TRUE)
-      zyMin <- ifelse(sum(Y[,,t]==1, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==1],na.rm=TRUE), 0)
+      zyMin <- ifelse( sum(Y[,,t]==1, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==1],na.rm=TRUE), 0)
       z01<-.5*(zyMax+zyMin ) 
       Z[,,t]<-Z[,,t] - z01
     } 
@@ -391,9 +392,9 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   have_coda<-suppressWarnings(
                try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
 
-  # for (s in 1:(nscan + burn)) 
-  # { 
-   s=1
+  for (s in 1:(nscan + burn)) 
+  { 
+   # s=1
     # update Z
     E.nrm<-array(dim=dim(Z))
     for (t in 1:N)
@@ -632,6 +633,12 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
               YPM=YPM,GOF=GOF)
   } 
+
+# summStats = function(x){ c( mu=mean(x), sd=sd(x), med=median(x), quantile(x, probs=c(0.025,0.975)) ) }
+# round(t(apply(fit$BETA, 2, summStats)),2)
+# library(reshape2) ; library(ggplot2)
+# ugh = melt(fit$BETA)
+# ggplot(ugh, aes(x=Var1, y=value)) + geom_line() + facet_wrap(~Var2, scales='free')
 
   class(fit) <- "ame"
   fit
