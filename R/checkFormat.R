@@ -10,7 +10,7 @@
 #' @param Xrow a T length list of n x pr matrices of nodal row covariates
 #' @param Xcol a T length list of n x pc matrices of nodal column covariates
 #' @author Shahryar Minhas
-#' @export checkFormat
+#' @export
 #' 
 
 checkFormat <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL){

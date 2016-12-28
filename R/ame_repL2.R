@@ -176,8 +176,7 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   if(is.element(model,c("bin","cbin"))) { Y<-1*(Y>0) } 
    
   # observed and max outdegrees 
-  if(is.element(model,c("cbin","frn","rrl")))
-  {
+  if(is.element(model,c("cbin","frn","rrl")) ){
     odobs<-apply(Y>0,c(1,3),sum,na.rm=TRUE) 
     if(length(odmax)==1) { odmax<-rep(odmax,nrow(Y[,,1])) } 
   }
@@ -191,13 +190,11 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   pd<-length(Xdyad[,,,1])/n^2
 
   X<-array(dim=c(n,n,pr+pc+pd+intercept,N)) 
-  for (t in 1:N)
-  { 
+  for (t in 1:N ){ 
     Xt<-design_array_listwisedel(Xrow[,,t],Xcol[,,t],Xdyad[,,,t],intercept,n) 
 
     # re-add intercept if it was removed
-    if(dim(Xt)[3]<dim(X)[3])
-    {
+    if(dim(Xt)[3]<dim(X)[3] ){
       tmp<-array( dim=dim(Xt)+c(0,0,1),
         dimnames=list(NULL,NULL,c('intercept',dimnames(Xt)[[3]])) ) 
       tmp[,,1]<-1 ; tmp[,,-1]<-Xt   
@@ -239,16 +236,13 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   }
     
   # construct matrix of ranked nominations for frn, rrl   
-  if(is.element(model,c("frn","rrl")))
-  {
+  if(is.element(model,c("frn","rrl")) ){
     ymx<-max(apply(1*(Y>0),c(1,3),sum,na.rm=TRUE))
     YL<-list()
-    for (t in 1:N) 
-    {
+    for (t in 1:N ){
       YL.t<-NULL
       warn<-FALSE
-      for(i in 1:nrow(Y[,,1]))
-      {
+      for(i in 1:nrow(Y[,,1]) ){
         yi<-Y[i,,t] ; rnkd<-which( !is.na(yi)&yi>0 )
         if(length(yi[rnkd])>length(unique(yi[rnkd]))){warn<-TRUE}
         yi[rnkd]<-rank(yi[rnkd],ties.method="random")
@@ -262,16 +256,13 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     
   # starting Z values
   Z<-array(dim=dim(Y))
-  for (t in 1:N)
-  {
+  for (t in 1:N ){
     if(model=="nrm"){Z[,,t]<-Y[,,t] }
     if(model=="ord"){Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),ncol(Y[,,t]))} 
-    if(model=="rrl")
-    {  
+    if(model=="rrl" ){  
       Z[,,t]<-matrix(t(apply(Y[,,t],1,zscores)),nrow(Y[,,t]),ncol(Y[,,t])) 
     }  
-    if(model=="bin")
-    { 
+    if(model=="bin" ){ 
       Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t])) 
       # zyMax <- max(Z[,,t][Y[,,t]==0],na.rm=TRUE)
       zyMax <- ifelse( sum(Y[,,t]==0, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==0],na.rm=TRUE), 0)
@@ -281,21 +272,17 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
       Z[,,t]<-Z[,,t] - z01
     } 
       
-    if(is.element(model,c("cbin","frn")))
-    {
+    if(is.element(model,c("cbin","frn")) ){
       Z[,,t]<-Y[,,t]
-      for(i in 1:nrow(Y[,,t]))
-      {
+      for(i in 1:nrow(Y[,,t]) ){
         yi<-Y[i,,t]
         zi<-zscores(yi)
         rnkd<-which( !is.na(yi) & yi>0 ) 
-        if(length(rnkd)>0 && min(zi[rnkd])<0)
-        { 
+        if(length(rnkd)>0 && min(zi[rnkd])<0 ){ 
           zi[rnkd]<-zi[rnkd] - min(zi[rnkd]) + 1e-3 
         }
           
-        if(length(rnkd)<odmax[i]) 
-        {
+        if(length(rnkd)<odmax[i] ){
           urnkd<-which( !is.na(yi) & yi==0 ) 
           if(max(zi[urnkd])>0) { zi[urnkd]<-zi[urnkd] - max(zi[urnkd]) -1e-3 }
         }
@@ -307,8 +294,7 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     
   # starting values for missing entries  
   ZA<-Z
-  for (t in 1:N)
-  { 
+  for (t in 1:N){ 
     mu<-mean(Z[,,t],na.rm=TRUE) 
     a<-rowMeans(Z[,,t],na.rm=TRUE) ; b<-colMeans(Z[,,t],na.rm=TRUE)
     # a[is.na(a)] <- mean(a, na.rm=TRUE) ; b[is.na(b)] <- mean(b, na.rm=TRUE)
@@ -323,7 +309,6 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   rho<-0
   Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
   U<-V<-matrix(0, nrow(Y[,,1]), R) 
-  
     
   #  output items
   BETA <- matrix(nrow = 0, ncol = dim(X)[3] - pr*symmetric)
@@ -337,15 +322,13 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   names(APS)<-names(BPS)<-rownames(U)<-rownames(V)<-rownames(Y[,,1])
    
   # names of parameters, asymmetric case  
-  if(!symmetric)
-  { 
+  if(!symmetric ){ 
     colnames(VC) <- c("va", "cab", "vb", "rho", "ve") 
     colnames(BETA) <- dimnames(X)[[3]] 
   }   
 
   # names of parameters, symmetric case
-  if(symmetric)
-  { 
+  if(symmetric ){ 
     colnames(VC) <- c("va", "ve")  
     rb<-intercept+seq(1,pr,length=pr) ; cb<-intercept+pr+seq(1,pr,length=pr)
     bnames<-dimnames(X)[[3]]
@@ -359,30 +342,26 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   have_coda<-suppressWarnings(
                try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
 
-  for (s in 1:(nscan + burn)) 
-  { 
+  for (s in 1:(nscan + burn) ){ 
    # s=1
     # update Z
     E.nrm<-array(dim=dim(Z))
-    for (t in 1:N)
-    {
+    for (t in 1:N ){
       EZ<-Xbeta(array(X[,,,t],dim(X)[1:3]), beta)+ outer(a, b,"+")+ U%*%t(V)
-      if(model=="nrm")
-      { 
+      if(model=="nrm" ){ 
         Z[,,t]<-rZ_nrm_fc(Z[,,t],EZ,rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ
       }
       if(model=="bin"){ Z[,,t]<-rZ_bin_fc(Z[,,t],EZ,rho,Y[,,t]) }
       if(model=="ord"){ Z[,,t]<-rZ_ord_fc(Z[,,t],EZ,rho,Y[,,t]) }
       if(model=="cbin"){Z[,,t]<-rZ_cbin_fc(Z[,,t],EZ,rho,Y[,,t],odmax,odobs)}
-      if(model=="frn")
-      { 
+      if(model=="frn" ){ 
         Z[,,t]<-rZ_frn_fc(Z[,,t],EZ,rho,Y[,,t],YL[[t]],odmax,odobs)
       }
       if(model=="rrl"){ Z[,,t]<-rZ_rrl_fc(Z[,,t],EZ,rho,Y[,,t],YL[[t]]) } 
     }
 
     # update s2
-    if (model=="nrm") s2<-rs2_rep_fc(E.nrm,rho) 
+    if (model=="nrm"){ s2<-rs2_rep_fc(E.nrm,rho) }
       
     # update beta, a b
     tmp <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)
@@ -392,36 +371,30 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     if(symmetric){ a<-b<-(a+b)/2 }
  
     # update Sab - full SRM
-    if(rvar & cvar & !symmetric )
-    {
+    if(rvar & cvar & !symmetric ){
       Sab<-solve(rwish(solve(diag(2)+crossprod(cbind(a,b))),3+nrow(Z[,,1])))
     }
 
     # update Sab - rvar only
-    if (rvar & !cvar & !symmetric) 
-    {
+    if (rvar & !cvar & !symmetric ){
       Sab[1, 1] <- 1/rgamma(1, (1 + nrow(Y[,,t]))/2, (1 + sum(a^2))/2)
     }
      
     # update Sab - cvar only 
-    if (!rvar & cvar & !symmetric) 
-    {
+    if (!rvar & cvar & !symmetric ){
       Sab[2, 2] <- 1/rgamma(1, (1 + nrow(Y[,,t]))/2, (1 + sum(b^2))/2)
     }
      
     # update Sab - symmetric case
-    if(symmetric & nvar)
-    {
+    if(symmetric & nvar ){
       Sab[1,1]<-Sab[2,2]<-1/rgamma(1,(1+nrow(Y))/2,(1+sum(a^2))/2)
       Sab[1,2]<-Sab[2,1]<-.999*Sab[1,1]   
     }
  
     # update rho
-    if (dcor) 
-    {
+    if(dcor ){
       E.T<-array(dim=dim(Z))
-      for (t in 1:N)
-      {
+      for (t in 1:N ){
         E.T[,,t]<-Z[,,t]-(Xbeta(array(X[,,,t],dim(X)[1:3]),beta) + 
                           outer(a, b, "+") + U %*% t(V))
       }
@@ -431,18 +404,14 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     # shrink rho - symmetric case 
     if(symmetric){ rho<-min(.9999,1-1/sqrt(s)) }
 
-
-
     # update U,V
-    if (R > 0)
-    {
+    if (R > 0){
       E<-array(dim=dim(Z))
       for(t in 1:N){E[,,t]<-Z[,,t]-(Xbeta(array(X[,,,t],dim(X)[1:3]),beta)+
                     outer(a, b, "+"))}
-      shrink<- (s>.5*burn)
+      shrink <- (s>.5*burn)
 
-      if(symmetric)
-      { 
+      if(symmetric ){ 
         EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
         UV<-rUV_sym_fc(EA, U, V, s2/dim(E)[3],shrink) 
       }
@@ -455,11 +424,10 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     if(s%%odens==0&s<=burn){cat(round(100*s/burn,2)," pct burnin complete \n")}
   
     # save parameter values and monitor the MC
-    if(s%%odens==0 & s>burn) 
-    { 
+    if(s%%odens==0 & s>burn ){ 
+
       # save BETA and VC - symmetric case 
-      if(symmetric) 
-      {
+      if(symmetric ){
         br<-beta[rb] ; bc<-beta[cb] ; bn<-(br+bc)/2
         sbeta<-c(beta[1*intercept],bn,beta[-c(1*intercept,rb,cb)] )
         BETA<-rbind(BETA,sbeta)  
@@ -468,8 +436,7 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
       }
     
       # save BETA and VC - asymmetric case 
-      if(!symmetric)
-      {
+      if(!symmetric ){
         BETA<-rbind(BETA, beta)
         VC<-rbind(VC, c(Sab[upper.tri(Sab, diag = T)], rho,s2)) 
       }
@@ -481,12 +448,10 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
         
       # simulate from posterior predictive 
       EZ<-Ys<-array(dim=dim(Z))
-      for (t in 1:N)
-      {
+      for(t in 1:N ){
         EZ[,,t]<-Xbeta(array(X[,,,t],dim(X)[1:3]),beta) + 
                   outer(a, b, "+") + U %*% t(V)
         if(symmetric){ EZ[,,t]<-(EZ[,,t]+t(EZ[,,t]))/2 }
-
         if(model=="bin"){ Ys[,,t]<-simY_bin(EZ[,,t],rho) }
         if(model=="cbin"){ Ys[,,t]<-1*(simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t])>0)}
         if(model=="frn"){ Ys[,,t]<-simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t]) }
@@ -494,11 +459,9 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
         if(model=="nrm"){ Ys[,,t]<-simY_nrm(EZ[,,t],rho,s2) }
         if(model=="ord"){ Ys[,,t]<-simY_ord(EZ[,,t],rho,Y[,,t]) }
     
-        if(symmetric)
-        {  
+        if(symmetric ){  
           Yst<-Ys[,,t] ; Yst[lower.tri(Yst)]<-0 ; Ys[,,t]<-Yst+t(Yst)
         }
-
       } 
 
       # update posterior sum
@@ -508,18 +471,15 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
       if(gof){Ys[is.na(Y)]<-NA ;GOF<-rbind(GOF,rowMeans(apply(Ys,3,gofstats)))}
        
       # print MC progress 
-      if(print) 
-      {
+      if(print){
         cat(s,round(apply(BETA,2,mean),2),":",round(apply(VC,2,mean),2),"\n")
-        if (have_coda & nrow(VC) > 3 & length(beta)>0) 
-        {
+        if (have_coda & nrow(VC) > 3 & length(beta)>0){
           cat(round(coda::effectiveSize(BETA)), "\n")
         }
       }
 
       # plot MC progress
-      if(plot) 
-      {
+      if(plot){
         # plot VC
         par(mfrow=c(1+2*gof,2),mar=c(3,3,1,1),mgp=c(1.75,0.75,0))
         mVC <- apply(VC, 2, median)
@@ -527,8 +487,7 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
         abline(h = mVC, col = 1:length(mVC)) 
        
         # plot BETA
-        if(length(beta)>0) 
-        {
+        if(length(beta)>0){
           mBETA <- apply(BETA, 2, median)
           matplot(BETA, type = "l", lty = 1, col = 1:length(mBETA))
           abline(h = mBETA, col = 1:length(mBETA))
@@ -536,20 +495,16 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
         } 
         
         # plot GOF
-        if(gof)
-        {
-          for(k in 1:4)
-          {
+        if(gof){
+          for(k in 1:4){
             hist(GOF[-1,k],xlim=range(GOF[,k]),main="",prob=TRUE,
                  xlab=colnames(GOF)[k],col="lightblue",ylab="",yaxt="n")  
             abline(v=GOF[1,k],col="red") 
           }
         } 
-
       } 
 
-
-    } 
+    } # end post burnin save
 
 
   } # end MCMC  
@@ -562,8 +517,7 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   UVPM<-UVPS/nrow(VC)
   YPM<-YPS/nrow(VC) 
   EZ<-array(dim=dim(Y)) 
-  for (t in 1:N)
-  {
+  for (t in 1:N){
     EZ[,,t]<-Xbeta(array(X[,,,t],dim(X)[1:3]),apply(BETA,2,mean)) + 
       outer(APM,BPM,"+")+UVPM 
   }
@@ -573,32 +527,51 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   rownames(BETA)<-NULL  
 
   # asymmetric output
-  if(!symmetric)
-  {
+  if(!symmetric){
     UDV<-svd(UVPM)
     U<-UDV$u[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
     V<-UDV$v[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
     rownames(U)<-rownames(V)<-dimnames(Y)[[1]]
+
+    # reformat EZ and YPM as list objects
+    EZ <- lapply(1:dim(EZ)[3], function(t){
+      actorT <- actorByYr[[t]]
+      return( EZ[actorT,actorT,t] ) }) ; names(EZ) <- pdLabs
+
+    YPM <- lapply(1:dim(YPM)[3], function(t){
+      actorT <- actorByYr[[t]]
+      return( YPM[actorT,actorT,t] ) }) ; names(YPM) <- pdLabs    
+
+    # create fitted object
     fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
                 YPM=YPM,GOF=GOF) 
   }
  
   # symmetric output
-  if(symmetric) 
-  {
+  if(symmetric){
     ULUPM<-UVPM 
     eULU<-eigen(ULUPM) 
     eR<- which( rank(-abs(eULU$val),ties.method="first") <= R )
     U<-eULU$vec[,seq(1,R,length=R),drop=FALSE]
     L<-eULU$val[eR]   
     rownames(U)<-rownames(ULUPM)<-colnames(ULUPM)<-dimnames(Y)[[1]]
-    for(t in 1:N)
-    { 
+    for(t in 1:N){ 
       EZ[,,t]<-.5*(EZ[,,t]+t(EZ[,,t]))
       YPM[,,t]<-.5*(YPM[,,t]+t(YPM[,,t]))
-    }  
+    }
+
+    # reformat EZ and YPM as list objects
+    EZ <- lapply(1:dim(EZ)[3], function(t){
+      actorT <- actorByYr[[t]]
+      return( EZ[actorT,actorT,t] ) }) ; names(EZ) <- pdLabs
+
+    YPM <- lapply(1:dim(YPM)[3], function(t){
+      actorT <- actorByYr[[t]]
+      return( YPM[actorT,actorT,t] ) }) ; names(YPM) <- pdLabs    
+
+    # create fitted object
     fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
-              YPM=YPM,GOF=GOF)
+      YPM=YPM,GOF=GOF)
   } 
 
 summStats = function(x){ c( mu=mean(x), sd=sd(x), med=median(x), quantile(x, probs=c(0.025,0.975)) ) }
