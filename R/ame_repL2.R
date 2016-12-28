@@ -1,99 +1,206 @@
-#' AME model fitting routine for replicated relational data
-#' 
-#' An MCMC routine providing a fit to an additive and multiplicative effects
-#' (AME) regression model to replicated relational data of
-#' various types. 
-#' 
-#' This command provides posterior inference for parameters in AME models of
-#' independent replicated relational data, assuming one of six possible data
-#' types/models:
-#' 
-#' "nrm": A normal AME model.
-#' 
-#' "bin": A binary probit AME model.
-#' 
-#' "ord": An ordinal probit AME model. An intercept is not identifiable in this
-#' model.
-#' 
-#' "cbin": An AME model for censored binary data.  The value of 'odmax'
-#' specifies the maximum number of links each row may have.
-#' 
-#' "frn": An AME model for fixed rank nomination networks. A higher value of
-#' the rank indicates a stronger relationship. The value of 'odmax' specifies
-#' the maximum number of links each row may have.
-#' 
-#' "rrl": An AME model based on the row ranks. This is appropriate if the
-#' relationships across rows are not directly comparable in terms of scale. An
-#' intercept, row random effects and row regression effects are not estimable
-#' for this model.
-#' 
-#' @usage ame_rep(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(model=="rrl")
-#' , cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, model="nrm",
-#' intercept=!is.element(model,c("rrl","ord")),
-#' symmetric=FALSE,
-#' odmax=rep(max(apply(Y>0,c(1,3),sum,na.rm=TRUE)),nrow(Y[,,1])), seed = 1,
-#' nscan = 10000, burn = 500, odens = 25, plot=TRUE, print = TRUE, gof=TRUE)
-#' @param Y an n x n x T array of relational matrix, where the third dimension correponds to replicates (over time, for example). See
-#' model below for various data types.
-#' @param Xdyad an n x n x pd x T array of covariates
-#' @param Xrow an n x pr x T array of nodal row covariates
-#' @param Xcol an n x pc x T array of nodal column covariates
-#' @param rvar logical: fit row random effects (asymmetric case)?
-#' @param cvar logical: fit column random effects (asymmetric case)? 
-#' @param dcor logical: fit a dyadic correlation (asymmetric case)?
-#' @param nvar logical: fit nodal random effects (symmetric case)? 
-#' @param R integer: dimension of the multiplicative effects (can be zero)
-#' @param model character: one of "nrm","bin","ord","cbin","frn","rrl" - see
-#' the details below
-#' @param intercept logical: fit model with an intercept?
-#' @param symmetric logical: Is the sociomatrix symmetric by design?
-#' @param odmax a scalar integer or vector of length n giving the maximum
-#' number of nominations that each node may make - used for "frn" and "cbin"
-#' models
-#' @param seed random seed
-#' @param nscan number of iterations of the Markov chain (beyond burn-in)
-#' @param burn burn in for the Markov chain
-#' @param odens output density for the Markov chain
-#' @param plot logical: plot results while running?
-#' @param print logical: print results while running?
-#' @param gof logical: calculate goodness of fit statistics?
-#' @return \item{BETA}{posterior samples of regression coefficients}
-#' \item{VC}{posterior samples of the variance parameters}
-#' \item{APM}{posterior mean of additive row effects a} \item{BPM}{posterior
-#' mean of additive column effects b} \item{U}{posterior mean of multiplicative
-#' row effects u} 
-#' \item{V}{posterior mean of multiplicative column effects v (asymmetric case)}
-#' \item{UVPM}{posterior mean of UV}
-#' \item{ULUPM}{posterior mean of ULU (symmetric case)} 
-#' \item{L}{posterior mean of L (symmetric case)} 
-#'  \item{EZ}{estimate of expectation of Z
-#' matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
-#' \item{GOF}{observed (first row) and posterior predictive (remaining rows)
-#' values of four goodness-of-fit statistics}
-#' @author Peter Hoff, Yanjun He
-#' @examples
-#' 
-#' data(YX_bin_long) 
-#' fit<-ame_rep(YX_bin_long$Y,YX_bin_long$X,burn=5,nscan=5,odens=1,model="bin")
-#' # you should run the Markov chain much longer than this
-#' 
-#' @export ame_rep 
-ame_rep<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
-           rvar = !(model=="rrl") , cvar = TRUE, dcor = !symmetric, 
-           nvar=TRUE, 
-           R = 0,
-           model="nrm",
-           intercept=!is.element(model,c("rrl","ord")), 
-           symmetric=FALSE, 
-           odmax=rep(max(apply(Y>0,c(1,3),sum,na.rm=TRUE)),nrow(Y[,,1])),
-           seed = 1, nscan = 10000, burn = 500, odens = 25,
-           plot=TRUE, print = TRUE, gof=TRUE)
-{
+# #' AME model fitting routine for replicated relational data
+# #' 
+# #' An MCMC routine providing a fit to an additive and multiplicative effects
+# #' (AME) regression model to replicated relational data of
+# #' various types. 
+# #' 
+# #' This command provides posterior inference for parameters in AME models of
+# #' independent replicated relational data, assuming one of six possible data
+# #' types/models:
+# #' 
+# #' "nrm": A normal AME model.
+# #' 
+# #' "bin": A binary probit AME model.
+# #' 
+# #' "ord": An ordinal probit AME model. An intercept is not identifiable in this
+# #' model.
+# #' 
+# #' "cbin": An AME model for censored binary data.  The value of 'odmax'
+# #' specifies the maximum number of links each row may have.
+# #' 
+# #' "frn": An AME model for fixed rank nomination networks. A higher value of
+# #' the rank indicates a stronger relationship. The value of 'odmax' specifies
+# #' the maximum number of links each row may have.
+# #' 
+# #' "rrl": An AME model based on the row ranks. This is appropriate if the
+# #' relationships across rows are not directly comparable in terms of scale. An
+# #' intercept, row random effects and row regression effects are not estimable
+# #' for this model.
+# #' 
+# #' @usage ame_repL(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(model=="rrl")
+# #' , cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, model="nrm",
+# #' intercept=!is.element(model,c("rrl","ord")),
+# #' symmetric=FALSE,
+# #' odmax=NULL, seed = 1,
+# #' nscan = 10000, burn = 500, odens = 25, plot=TRUE, print = TRUE, gof=TRUE)
+# #' @param Y a T length list of n x n relational matrices, where T corresponds to the number of replicates (over time, for example). See
+# #' model below for various data types.
+# #' @param Xdyad a T length list of n x n x pd arrays of covariates
+# #' @param Xrow a T length list of n x pr matrices of nodal row covariates
+# #' @param Xcol a T length list of n x pc matrices of nodal column covariates
+# #' @param rvar logical: fit row random effects (asymmetric case)?
+# #' @param cvar logical: fit column random effects (asymmetric case)? 
+# #' @param dcor logical: fit a dyadic correlation (asymmetric case)?
+# #' @param nvar logical: fit nodal random effects (symmetric case)? 
+# #' @param R integer: dimension of the multiplicative effects (can be zero)
+# #' @param model character: one of "nrm","bin","ord","cbin","frn","rrl" - see
+# #' the details below
+# #' @param intercept logical: fit model with an intercept?
+# #' @param symmetric logical: Is the sociomatrix symmetric by design?
+# #' @param odmax a scalar integer or vector of length n giving the maximum
+# #' number of nominations that each node may make - used for "frn" and "cbin"
+# #' models
+# #' @param seed random seed
+# #' @param nscan number of iterations of the Markov chain (beyond burn-in)
+# #' @param burn burn in for the Markov chain
+# #' @param odens output density for the Markov chain
+# #' @param plot logical: plot results while running?
+# #' @param print logical: print results while running?
+# #' @param gof logical: calculate goodness of fit statistics?
+# #' @return \item{BETA}{posterior samples of regression coefficients}
+# #' \item{VC}{posterior samples of the variance parameters}
+# #' \item{APM}{posterior mean of additive row effects a} \item{BPM}{posterior
+# #' mean of additive column effects b} \item{U}{posterior mean of multiplicative
+# #' row effects u} 
+# #' \item{V}{posterior mean of multiplicative column effects v (asymmetric case)}
+# #' \item{UVPM}{posterior mean of UV}
+# #' \item{ULUPM}{posterior mean of ULU (symmetric case)} 
+# #' \item{L}{posterior mean of L (symmetric case)} 
+# #'  \item{EZ}{estimate of expectation of Z
+# #' matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
+# #' \item{GOF}{observed (first row) and posterior predictive (remaining rows)
+# #' values of four goodness-of-fit statistics}
+# #' @author Peter Hoff, Yanjun He, Shahryar Minhas
+# #' @examples
+# #' 
+# #' data(YX_bin_list) 
+# #' fit<-ame_repL2(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,model="bin")
+# #' # you should run the Markov chain much longer than this
+# #' 
+# #' @export ame_repL2
+# ame_repL2<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
+#            rvar = !(model=="rrl") , cvar = TRUE, dcor = !symmetric, 
+#            nvar=TRUE, 
+#            R = 0,
+#            model="nrm",
+#            intercept=!is.element(model,c("rrl","ord")), 
+#            symmetric=FALSE, 
+#            odmax=NULL,
+#            seed = 1, nscan = 10000, burn = 500, odens = 25,
+#            plot=TRUE, print = TRUE, gof=TRUE)
+# { 
+
+
+rm(list=ls())
+library(amen)
+
+# data(YX_bin_long)
+
+# Y=YX_bin_long$Y ; Xdyad=YX_bin_long$X ; Xrow=NULL ;
+Xcol=NULL ; R=2
+burn=5 ; nscan=5 ; odens=1 ; model="bin" ; symmetric=TRUE
+rvar = !(model=="rrl"); cvar = TRUE ; dcor = !symmetric
+nvar=TRUE
+intercept=!is.element(model,c("rrl","ord"))
+intercept=FALSE
+# odmax=rep(max(apply(Y>0,c(1,3),sum,na.rm=TRUE)),nrow(Y[,,1]))
+seed=6886
+plot=FALSE ;  print = FALSE ;  gof=TRUE
+
+# # restructure Y
+# Y <- lapply(1:dim(YX_bin_long$Y)[3], function(t){YX_bin_long$Y[,,t]})
+# Xdyad <- lapply(1:dim(YX_bin_long$X)[4], function(t){YX_bin_long$X[,,,t]})
+
+# # add labels
+# set.seed(6886) ; actors <- as.character( sample(300:700,size=50,replace=FALSE) )
+# Y <- lapply(Y, function(y){ rownames(y) <- actors ; colnames(y) <- actors ; return(y) })
+# varLabs = paste0('dyadVar',1:3)
+# Xdyad <- lapply(Xdyad, function(x){ rownames(x) <- actors ; colnames(x) <- actors ; dimnames(x)[[3]] <- varLabs ; return(x) })
+
+# YX_bin_list <- list(Y=Y, X=Xdyad)
+    
+# set.seed(6886) ; toRem = sample(1:length(actors), 5)
+# toRem = actors[toRem]
+# Y[[1]] = Y[[1]][-which(actors %in% toRem),-which(actors %in% toRem)]
+# Y[[2]] = Y[[2]][-which(actors %in% toRem),-which(actors %in% toRem)]
+# Xdyad[[1]] = Xdyad[[1]][-which(actors %in% toRem),-which(actors %in% toRem),]
+# Xdyad[[2]] = Xdyad[[2]][-which(actors %in% toRem),-which(actors %in% toRem),]
+
+# load buthe milner data
+load('~/Dropbox/Research/netsMatter/replications/mansfield_milner_2012/inputData/amenData.rda')
+Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   # set random seed 
   set.seed(seed)
-   
+
+  # create full frame of actors
+  actorSet <- sort(unique(unlist(lapply(Y,rownames)))) ; nActors <- length(actorSet)
+
+  # reset odmax param
+  odmax <- rep( max( unlist( lapply(Y, function(y){ apply(y>0, 1, sum, na.rm=TRUE)  }) ) ), nActors )
+
+  # make sure inputted data is formatted correctly
+  if( !is.list(Y) ){ stop('Y needs to be inputted as a list.') }
+  if(!is.null(Xdyad)){ if( !is.list(Xdyad) ){ stop('Xdyad needs to be inputted as a list.') } }
+  if(!is.null(Xrow)){ if( !is.list(Xrow) ){ stop('Xrow needs to be inputted as a list.') } }
+  if(!is.null(Xcol)){ if( !is.list(Xcol) ){ stop('Xcol needs to be inputted as a list.') } }
+
   # set diag to NA 
-  N<-dim(Y)[3] ; for (t in 1:N) diag(Y[,,t]) <- NA 
+  N<-length(Y) ; pdLabs <- names(Y) ; Y<-lapply(Y, function(y){diag(y)=NA; return(y)})
+
+  # make sure actor labels are provided
+  if( do.call('sum', lapply(Y, function(y) !is.null( rownames(y) ) ) )!=length(Y) | 
+    do.call('sum', lapply(Y, function(y) !is.null( colnames(y) ) ) )!=length(Y) ){
+    stop('Actor labels need to be provided for all Y list objects.') }
+
+  if(!is.null(Xdyad)){
+  if( do.call('sum', lapply(Xdyad, function(x) !is.null( dimnames(x)[[1]] ) ) )!=length(Y) | 
+    do.call('sum', lapply(Xdyad, function(x) !is.null( dimnames(x)[[2]] ) ) )!=length(Y) ){
+    stop('Actor labels need to be provided for all Xdyad list objects.') } }
+
+  if(!is.null(Xrow)){
+    if( do.call('sum', lapply(Xrow, function(x) !is.null(rownames(x)) )) != length(Y) ){
+      stop('Actor labels need to be provided for all Xrow list objects.') } }
+
+  if(!is.null(Xcol)){
+    if( do.call('sum', lapply(Xcol, function(x) !is.null(rownames(x)) )) != length(Y) ){
+      stop('Actor labels need to be provided for all Xcol list objects.') } }
+
+  # make sure actor labels appear in same order across objects
+  for(t in 1:N){
+    tNames <- rownames(Y[[t]]) ; check <- identical(tNames, colnames(Y[[t]]))
+    if(!is.null(Xdyad)){ check <- c(check, identical( tNames, dimnames(Xdyad[[t]])[[1]] )) }
+    if(!is.null(Xdyad)){ check <- c(check, identical( tNames, dimnames(Xdyad[[t]])[[2]] )) }  
+    if(!is.null(Xrow)){ check <- c(check, identical(tNames, rownames(Xrow[[t]]) )) }
+    if(!is.null(Xcol)){ check <- c(check, identical(tNames, rownames(Xcol[[t]]) )) }
+    if( sum(check)/length(check) != 1 ){
+      stop('Actor labels are not identical across inputted data within time periods.') } } ; rm(list=c('tNames','check','t'))
+
+  # convert into array format for easier processing
+  tmp <- array(NA, dim=c(nActors,nActors,N),
+    dimnames=list( actorSet, actorSet, names(Y) ) )
+  for(t in 1:N){ tmp[rownames(Y[[t]]),rownames(Y[[t]]),t] <- Y[[t]] }
+  Y <- tmp ; rm(tmp)
+
+  if(!is.null(Xdyad)){
+    tmp <- array(NA, dim=c(nActors,nActors,dim(Xdyad[[1]])[3],N),
+      dimnames=list( actorSet, actorSet, dimnames(Xdyad[[1]])[[3]], pdLabs ) )
+    for(t in 1:N){
+      tmp[rownames(Xdyad[[t]]),rownames(Xdyad[[t]]),,t] <- Xdyad[[t]] }
+    Xdyad <- tmp ; rm(tmp) }
+
+  if(!is.null(Xrow)){
+    tmp <- array(NA, dim=c(nActors, dim(Xrow[[1]])[2], N),
+      dimnames=list( actorSet, colnames(Xrow[[1]]), pdLabs) )
+    for(t in 1:N){
+      tmp[rownames(Xrow[[t]]),,t] <- Xrow[[t]] }
+    Xrow <- tmp ; rm(tmp) }
+
+  if(!is.null(Xcol)){
+    tmp <- array(NA, dim=c(nActors, dim(Xcol[[1]])[2], N),
+      dimnames=list( actorSet, colnames(Xcol[[1]]), pdLabs) )
+    for(t in 1:N){
+      tmp[rownames(Xcol[[t]]),,t] <- Xcol[[t]] }
+    Xcol <- tmp ; rm(tmp) }
 
   # force binary if binary model specified 
   if(is.element(model,c("bin","cbin"))) { Y<-1*(Y>0) } 
@@ -117,20 +224,36 @@ ame_rep<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   X<-array(dim=c(n,n,pr+pc+pd+intercept,N)) 
   for (t in 1:N)
   { 
-    Xt<-design_array(Xrow[,,t],Xcol[,,t],Xdyad[,,,t],intercept,n) 
+    Xt<-design_array_listwisedel(Xrow[,,t],Xcol[,,t],Xdyad[,,,t],intercept,n) 
 
     # re-add intercept if it was removed
     if(dim(Xt)[3]<dim(X)[3])
     {
-      tmp<-array(dim=dim(Xt)+c(0,0,1)) 
+      tmp<-array( dim=dim(Xt)+c(0,0,1),
+        dimnames=list(NULL,NULL,c('intercept',dimnames(Xt)[[3]])) ) 
       tmp[,,1]<-1 ; tmp[,,-1]<-Xt   
       Xt<-tmp
     }
 
     X[,,,t]<-Xt
   } 
-  dimnames(X)[[3]]<-as.list(dimnames(Xt)[[3]]) 
+  if( (pr+pc+pd+intercept)>0 ){ dimnames(X)[[3]]<-dimnames(Xt)[[3]] }
   dimnames(X)[[4]]<-dimnames(Y)[[3]]
+
+  # add NAs from design array to Y
+  if( (pr + pc + pd) > 0){
+    for(t in 1:N){
+      for(p in 1:dim(X)[3]){
+        # find NAs
+        naMat <- X[,,p,t] ; naMat[!is.na(naMat)] <- 1 ; naMat[is.nan(naMat)] <- NA
+        # add NAs to Y
+        Y[,,t] <- Y[,,t] * naMat
+      }
+    } ; rm(naMat)
+  }
+
+  # turn NAs in design array to zero
+  X[is.na(X)]<-0  
 
   # design matrix warning for rrl
   if( model=="rrl" & any(apply(apply(X,c(1,3),var),2,sum)==0)
@@ -217,9 +340,11 @@ ame_rep<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   { 
     mu<-mean(Z[,,t],na.rm=TRUE) 
     a<-rowMeans(Z[,,t],na.rm=TRUE) ; b<-colMeans(Z[,,t],na.rm=TRUE)
+    # a[is.na(a)] <- mean(a, na.rm=TRUE) ; b[is.na(b)] <- mean(b, na.rm=TRUE)
+    a[is.na(a)] <- 0 ; b[is.na(b)] <- 0
     ZA[,,t]<-mu + outer(a,b,"+")
   }
-  Z[is.na(Z)]<-ZA[is.na(Z)] 
+  Z[is.na(Z)]<-ZA[is.na(Z)]
     
   # other starting values
   beta<-rep(0,dim(X)[3]) 
@@ -263,9 +388,9 @@ ame_rep<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   have_coda<-suppressWarnings(
                try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
 
-  for (s in 1:(nscan + burn)) 
-  { 
-   
+  # for (s in 1:(nscan + burn)) 
+  # { 
+   s=1
     # update Z
     E.nrm<-array(dim=dim(Z))
     for (t in 1:N)
@@ -509,6 +634,3 @@ ame_rep<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   fit
 
 }
-
-
-

@@ -22,6 +22,6 @@ a new value of rho
 Metropolis update for dyadic correlation with independent replicate data.
 }
 \author{
-Peter Hoff, Yanjun He
+Peter Hoff, Yanjun He, Shahryar Minhas
 }
 

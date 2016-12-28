@@ -20,6 +20,6 @@ a new value of s2
 Gibbs update for dyadic variance with independent replicate relational data
 }
 \author{
-Peter Hoff, Yanjun He
+Peter Hoff, Yanjun He, Shahryar Minhas
 }
 

@@ -30,6 +30,6 @@ assuming same additive row and column effects and regression coefficient
 across replicates.
 }
 \author{
-Peter Hoff, Yanjun He
+Peter Hoff, Yanjun He, Shahryar Minhas
 }
 
