@@ -305,8 +305,11 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     if(model=="bin")
     { 
       Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t])) 
-      z01<-.5*(max(Z[,,t][Y[,,t]==0],na.rm=TRUE)+
-               min(Z[,,t][Y[,,t]==1],na.rm=TRUE) ) 
+      # zyMax <- max(Z[,,t][Y[,,t]==0],na.rm=TRUE)
+      zyMax <- ifelse(sum(Y[,,t]==0, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==0],na.rm=TRUE), 0)
+      # zyMin <- min(Z[,,t][Y[,,t]==1],na.rm=TRUE)
+      zyMin <- ifelse(sum(Y[,,t]==1, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==1],na.rm=TRUE), 0)
+      z01<-.5*(zyMax+zyMin ) 
       Z[,,t]<-Z[,,t] - z01
     } 
       
