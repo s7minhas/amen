@@ -291,6 +291,9 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
       } 
     }
   }
+
+  # add a list version of design array for cpp fns
+  Xlist <- lapply(1:N, function(t){ array(X[,,,t], dim=dim(X)[1:3], dimnames=dimnames(X)[1:3]) })
     
   # starting values for missing entries  
   ZA<-Z
@@ -342,9 +345,9 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   have_coda<-suppressWarnings(try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
 
   # for (s in 1:(nscan + burn) ){ 
-   # s=1
-   fuuuuuck2=system.time(
-    for(s in 1:2){
+   s=1
+   # fuuuuuck2=system.time(
+    # for(s in 1:2){
     # update Z
     E.nrm<-array(dim=dim(Z))
     for(t in 1:N ){
@@ -365,7 +368,21 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     if (model=="nrm"){ s2<-rs2_rep_fc(E.nrm,rho) } # somewhat slow
       
     # update beta, a b
-    tmp <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2) # slow here
+    source('~/Research/software/amen/R/rbeta_ab_rep_fc_fast.R')
+    source('~/Research/software/amen/R/rbeta_ab_rep_fc.R')
+
+    # take some operations outside of loop
+    XrLong <- apply(X, c(1,3,4), sum)                 # row sum
+    XcLong <- apply(X, c(2,3,4), sum)                 # col sum
+    mXLong <- apply(X, c(3,4), c)                     # design matrix
+    mXtLong <- apply(aperm(X, c(2,1,3,4)), c(3,4), c) # dyad-transposed design matrix
+
+Z.T = sweep(Z,c(1,2),U%*%t(V))
+X.T = X
+
+    system.time(tmp <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)) # slow here
+    system.time(tmp2 <- rbeta_ab_rep_fc_fast(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2,XrLong, XcLong, mxLong, mXtLong)) # slow here
+    identical(tmp, tmp2)
     beta <- tmp$beta
     a <- tmp$a * rvar
     b <- tmp$b * cvar 

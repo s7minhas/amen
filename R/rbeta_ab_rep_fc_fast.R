@@ -16,10 +16,10 @@
 #' @param s2 dyadic variance
 #' @return \item{beta}{regression coefficients} \item{a}{additive row effects}
 #' \item{b}{additive column effects}
-#' @author Peter Hoff, Yanjun He
-#' @export rbeta_ab_rep_fc
-rbeta_ab_rep_fc <-
-  function(Z.T,Sab,rho,X.T,s2=1) 
+#' @author Peter Hoff, Yanjun He, Shahryar Minhas
+#' @export rbeta_ab_rep_fc_fast
+rbeta_ab_rep_fc_fast <-
+  function(Z.T,Sab,rho,X.T,s2=1, XrLong, XcLong, mXLong, mXtLong) 
   {
     ###
     N<-dim(X.T)[4]
@@ -33,16 +33,15 @@ rbeta_ab_rep_fc <-
     ###
     
     lb<-Qb<-Zr.T<-Zc.T<-Xr.T<-Xc.T<-0
-    
+
     for (t in 1:N){
       Z<-Z.T[,,t]
       X<-array(X.T[,,,t],dim=dim(X.T)[1:3]) 
-      p<-dim(X)[3]
-      Xr<-apply(X,c(1,3),sum)            # row sum
-      Xc<-apply(X,c(2,3),sum)            # col sum
-      mX<- apply(X,3,c)                  # design matrix
-      mXt<-apply(aperm(X,c(2,1,3)),3,c)  # dyad-transposed design matrix
-      XX<-t(mX)%*%mX                     # regression sums of squares
+      Xr<-XrLong[,,t]                       # row sum
+      Xc<-XcLong[,,t]                       # col sum
+      mX<- mXLong[,,t]                      # design matrix
+      mXt<-mXtLong[,,t]                     # dyad-transposed design matrix
+      XX<-t(mX)%*%mX                      # regression sums of squares
       XXt<-t(mX)%*%mXt
       
       mXs<-td*mX+to*mXt                  # matricized transformed X
