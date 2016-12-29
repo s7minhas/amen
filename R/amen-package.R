@@ -17,6 +17,8 @@
 #' @name amen-package
 #' @aliases amen-package amen
 #' @docType package
+#' @importFrom Rcpp evalCpp
+#' @useDynLib amen
 #' @author Peter Hoff, Bailey Fosdick, Alex Volfovsky, Yanjun He
 #' 
 #' Maintainer: Peter Hoff <pdhoff@@uw.edu>
