@@ -19,7 +19,7 @@
 #' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @export rbeta_ab_rep_fc_fast
 rbeta_ab_rep_fc_fast <-
-  function(Z.T,Sab,rho,X.T,s2=1, XrLong, XcLong, mXLong, mXtLong) 
+  function(Z.T,Sab,rho,X.T,s2=1, XrLong, XcLong, mXLong, mXtLong, xxLong, xxTLong) 
   {
     ###
     N<-dim(X.T)[4]
@@ -36,13 +36,12 @@ rbeta_ab_rep_fc_fast <-
 
     for (t in 1:N){
       Z<-Z.T[,,t]
-      X<-array(X.T[,,,t],dim=dim(X.T)[1:3]) 
       Xr<-XrLong[,,t]                       # row sum
       Xc<-XcLong[,,t]                       # col sum
       mX<- mXLong[,,t]                      # design matrix
       mXt<-mXtLong[,,t]                     # dyad-transposed design matrix
-      XX<-t(mX)%*%mX                      # regression sums of squares
-      XXt<-t(mX)%*%mXt
+      XX<-xxLong[,,t]                      # regression sums of squares
+      XXt<-xxTLong[,,t]
       
       mXs<-td*mX+to*mXt                  # matricized transformed X
       XXs<-(to^2+td^2)*XX + 2*to*td*XXt  # sum of squares for transformed X

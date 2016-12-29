@@ -221,6 +221,17 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   # turn NAs in design array to zero
   X[is.na(X)]<-0  
 
+  # useful design array transformations to do up front
+  ## these are used in calculation of rbeta
+  Xlist <- lapply(1:N, function(t){ array(X[,,,t], dim=dim(X)[1:3], dimnames=dimnames(X)[1:3]) })
+  XrLong <- apply(X, c(1,3,4), sum)                 # row sum
+  XcLong <- apply(X, c(2,3,4), sum)                 # col sum
+  mXLong <- apply(X, c(3,4), c)                     # design matrix
+  mXtLong <- apply(aperm(X, c(2,1,3,4)), c(3,4), c) # dyad-transposed design matrix
+  # regression sums of squares
+  xxLong <- array(apply(mXLong, 3, function(x){ t(x)%*%x }), dim=c(dim(X)[3],dim(X)[3],N))
+  xxTLong <- array(unlist(lapply(1:N, function(t){ t(mXLong[,,t]) %*% mXtLong[,,t] })), dim=dim(xxLong))
+  
   # design matrix warning for rrl
   if(model=='rrl'){
     if( any(apply(apply(X,c(1,3),var),2,sum)==0) & !any( apply(X,c(3),function(x){var(c(x))})==0) ){
@@ -292,9 +303,6 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     }
   }
 
-  # add a list version of design array for cpp fns
-  Xlist <- lapply(1:N, function(t){ array(X[,,,t], dim=dim(X)[1:3], dimnames=dimnames(X)[1:3]) })
-    
   # starting values for missing entries  
   ZA<-Z
   for (t in 1:N){ 
@@ -351,7 +359,7 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     # update Z
     E.nrm<-array(dim=dim(Z))
     for(t in 1:N ){
-      EZ<-Xbeta_cpp(array(X[,,,t],dim(X)[1:3]), beta)+ outer(a, b,"+")+ U%*%t(V)
+      EZ<-Xbeta_cpp(array(X[,,,t],dim(X)[1:3]), beta)+ outer(a, b,"+")+ U%*%t(V) # move out of loop
       if(model=="nrm" ){ 
         Z[,,t]<-rZ_nrm_fc(Z[,,t],EZ,rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ
       }
@@ -371,17 +379,11 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     source('~/Research/software/amen/R/rbeta_ab_rep_fc_fast.R')
     source('~/Research/software/amen/R/rbeta_ab_rep_fc.R')
 
-    # take some operations outside of loop
-    XrLong <- apply(X, c(1,3,4), sum)                 # row sum
-    XcLong <- apply(X, c(2,3,4), sum)                 # col sum
-    mXLong <- apply(X, c(3,4), c)                     # design matrix
-    mXtLong <- apply(aperm(X, c(2,1,3,4)), c(3,4), c) # dyad-transposed design matrix
-
 Z.T = sweep(Z,c(1,2),U%*%t(V))
 X.T = X
 
     system.time(tmp <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)) # slow here
-    system.time(tmp2 <- rbeta_ab_rep_fc_fast(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2,XrLong, XcLong, mxLong, mXtLong)) # slow here
+    system.time(tmp2 <- rbeta_ab_rep_fc_fast(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2,XrLong, XcLong, mXLong, mXtLong, xxLong, xxTLong)) # slow here
     identical(tmp, tmp2)
     beta <- tmp$beta
     a <- tmp$a * rvar
@@ -439,7 +441,7 @@ X.T = X
     if( dcor ){
       E.T<-array(dim=dim(Z))
       for (t in 1:N ){
-        E.T[,,t]<-Z[,,t]-(Xbeta_cpp(array(X[,,,t],dim(X)[1:3]),beta) + # slow here
+        E.T[,,t]<-Z[,,t]-(Xbeta_cpp(array(X[,,,t],dim(X)[1:3]),beta) + # move out of loop
                           outer(a, b, "+") + U %*% t(V))
       }
       rho<-rrho_mh_rep(E.T, rho,s2) # somewhat slow
@@ -451,7 +453,7 @@ X.T = X
     # update U,V
     if (R > 0){
       E<-array(dim=dim(Z))
-      for(t in 1:N){E[,,t]<-Z[,,t]-(Xbeta_cpp(array(X[,,,t],dim(X)[1:3]),beta)+ # slow here
+      for(t in 1:N){E[,,t]<-Z[,,t]-(Xbeta_cpp(array(X[,,,t],dim(X)[1:3]),beta)+ # move out of loop
                     outer(a, b, "+"))}
       shrink <- (s>.5*burn)
 
