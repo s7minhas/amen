@@ -382,9 +382,192 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
 Z.T = sweep(Z,c(1,2),U%*%t(V))
 X.T = X
 
+    # iSe2 <- mhalf( solve( matrix(c(1,rho,rho,1),2)*s2 ) ) ; td <- iSe2[1,1] ; to <- iSe2[1,2]
+    # mXsLong <- array(unlist(lapply(1:N, function(t){ td*mXLong[,,t] + to*mXtLong[,,t] })), dim=dim(mXLong))
+
+###
+N<-dim(X.T)[4]
+p<-dim(X.T)[3] 
+Se<-matrix(c(1,rho,rho,1),2,2)*s2
+iSe2<-mhalf(solve(Se))
+td<-iSe2[1,1] ; to<-iSe2[1,2]
+Sabs<-iSe2%*%Sab%*%iSe2
+tmp<-eigen(Sabs)
+k<-sum(zapsmall(tmp$val)>0 )
+###
+
+
+library(inline) ; library(Rcpp) ; library(RcppArmadillo)
+iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
+tmp <- eigen(Sabs) ; k<-sum(zapsmall(tmp$val)>0 )
+G<-tmp$vec[,1:k] %*% sqrt(diag(tmp$val[1:k],nrow=k))
+e <- matrix(rnorm(n*k),n,k) ; colE <- colSums(e)
+
+rcpp_inc <- '
+  using namespace Rcpp;
+  using namespace arma;
+  Environment amen("package:amen");
+  Function mhalf = amen["mhalf"];  
+  Function rmvnorm = amen["rmvnorm"];  
+'
+src <- '
+  arma::cube zCube = as<arma::cube>(Z);
+  arma::cube XrCube = as<arma::cube>(XrLong);
+  arma::cube XcCube = as<arma::cube>(XcLong);
+  arma::cube mXCube = as<arma::cube>(mXLong);
+  arma::cube mXtCube = as<arma::cube>(mXtLong);
+  arma::cube xxCube = as<arma::cube>(xxLong);
+  arma::cube xxTCube = as<arma::cube>(xxTLong);
+  arma::mat iSe2 = as<arma::mat>(iSe2x);
+  arma::mat Sabs = as<arma::mat>(Sabsx);
+  double td = iSe2(0,0);
+  double to = iSe2(0,1);
+  int k = as<int>(kx);
+  arma::mat G = as<arma::mat>(Gx);
+  arma::mat e = as<arma::mat>(ex);
+  arma::vec colE = as<arma::vec>(colEx);
+
+  int N = zCube.n_slices;  
+  int n = zCube.n_rows;
+  int p = XrCube.n_cols;
+
+  arma::vec lb = arma::zeros(p);
+  arma::mat Qb = arma::zeros(p, p);
+  arma::vec ZrT = arma::zeros(n);
+  arma::vec ZcT = arma::zeros(n);
+  arma::mat XrT = arma::zeros(n,p);
+  arma::mat XcT = arma::zeros(n,p);
+
+  for(int t=0 ; t < N ; ++t){
+    arma::mat mXs = td * mXCube.slice(t) + to*mXtCube.slice(t);
+    arma::mat XXs = (pow(to, 2)+pow(td, 2))*xxCube.slice(t) + 2*to*td*xxTCube.slice(t);
+    arma::mat Zs = td*zCube.slice(t) + to*zCube.slice(t).t();
+
+    arma::vec zr(n);
+    for (int i=0 ; i < n ; ++i){
+      zr[i] = arma::sum(zCube.slice(t).row(i));
+    }
+
+    arma::vec zc(n);
+    for (int j=0 ; j < n ; ++j){
+      zc[j] = arma::sum(zCube.slice(t).col(j));
+    }
+
+    if ( p > 0 ) {
+      lb = lb + mXs.t() * vectorise(Zs);
+      Qb = Qb + XXs + ( xxCube.slice(t)/mXs.n_rows )/N;
+    }
+
+    arma::mat Xsr = td * XrCube.slice(t) + to*XcCube.slice(t);
+    arma::mat Xsc = td * XcCube.slice(t) + to*XrCube.slice(t);
+
+    ZrT = ZrT + zr;
+    ZcT = ZcT + zc;
+    XrT = XrT + Xsr;
+    XcT = XcT + Xsc;
+  }
+
+  arma::mat ab = arma::zeros(n,2);
+  arma::mat K = arma::mat("0 1; 1 0");
+  arma::mat idmatk = eye<mat>(k,k);
+
+  arma::mat A = N*n*G.t()*G + idmatk;
+  arma::mat B = N*G.t()*K*G;
+  arma::mat iA0 = inv(A);
+  arma::mat C0 = -inv(A + n*B)*B*iA0;
+
+  arma::mat iA = G * iA0 * G.t();
+  arma::mat C = G * C0 * G.t();
+
+  arma::mat idmatn = eye<mat>(n,n);
+  arma::mat onesmatn = ones<mat>(n,n);
+  arma::mat H = arma::kron(iA, idmatn) + arma::kron(C,onesmatn);
+  arma::mat Hrr = H.submat(0,0,n-1,n-1);
+  arma::mat Hrc = H.submat(0,n,n-1,2*n-1);
+  arma::mat Hcr = H.submat(n,0,2*n-1,n-1);
+  arma::mat Hcc = H.submat(n,n,2*n-1,2*n-1);
+  Qb = Qb-XrT.t()*Hrr*XrT-XcT.t()*Hcr*XrT-XrT.t()*Hrc*XcT-XcT.t()*Hcc*XcT;
+  lb = lb-XrT.t()*Hrr*ZrT-XcT.t()*Hcr*ZrT-XrT.t()*Hrc*ZcT-XcT.t()*Hcc*ZcT;
+
+  arma::mat Vb = inv(Qb);
+  arma::mat Mb = Vb * lb;
+  arma::vec beta = as<arma::vec>(rmvnorm(1,Mb,Vb));
+
+  arma::mat RrT = ZrT - XrT * beta; 
+  arma::mat RcT = ZcT - XcT * beta; 
+
+  arma::mat RTcrossiA0G = join_rows(RrT, RcT) * (iA0 * G.t()).t();
+  arma:vec RrTC0G = sum(accu(RrT) * C0 * G.t(),1);
+  arma::mat m = arma::zeros(n,RTcrossiA0G.n_cols);
+  for( int r=0 ; r < RTcrossiA0G.n_cols ; r++ ) {
+    m.col(r) = RTcrossiA0G.col(r) + RrTC0G[r];
+  }
+
+  arma::mat hiA0 = as<arma::mat>(mhalf(iA0));
+  arma::mat ehiA0 = (e * hiA0).t();
+  arma::mat iA0nCo = as<arma::mat>(mhalf(iA0+n*C0));
+  arma::mat hiA0nCo = (hiA0-iA0nCo)/n;
+  arma::vec ugh = hiA0nCo * colE;
+  arma::mat w = arma::zeros(n,RTcrossiA0G.n_cols);
+  for( int r=0 ; r < RTcrossiA0G.n_cols ; r++ ) {
+    w.col(r) = m.col(r) + (ehiA0.row(r) - ugh[r]).t();
+  }
+
+  arma::mat abVec = w * G.t() * inv(iSe2);
+  arma::vec a = abVec.col(0);
+  arma::vec b = abVec.col(1);
+  List out = List::create(beta, a, b);
+
+  return(wrap( out ));
+'
+
+fx <- cxxfunction(signature(
+  Z="numeric", 
+  XrLong="numeric", XcLong="numeric",
+  mXLong="numeric", mXtLong="numeric",
+  xxLong="numeric", xxTLong="numeric",  
+  iSe2x="numeric", Sabsx="numeric",
+  kx="numeric", Gx="numeric",
+  ex="numeric", colEx="numeric"
+  ), body=src, plugin='RcppArmadillo', rcpp_inc)
+
     system.time(tmp <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)) # slow here
     system.time(tmp2 <- rbeta_ab_rep_fc_fast(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2,XrLong, XcLong, mXLong, mXtLong, xxLong, xxTLong)) # slow here
-    identical(tmp, tmp2)
+    system.time(tmp3 <- fx( Z=Z.T, XrLong=XrLong, XcLong=XcLong, mXLong=mXLong, mXtLong=mXtLong, xxLong=xxLong, xxTLong=xxTLong, iSe2x=iSe2, Sabsx=Sabs, kx=k, Gx=G, ex=e, colEx=colE ))
+
+set.seed(6886) ; tst=fx(
+  Z=Z.T,
+  XrLong=XrLong, XcLong=XcLong,
+  mXLong=mXLong, mXtLong=mXtLong,
+  xxLong=xxLong, xxTLong=xxTLong,
+  iSe2x=iSe2, Sabsx=Sabs,
+  kx=k, Gx=G,
+  ex=e, colEx=colE
+  )
+
+dim(tst)
+dim(t(ab.vec))
+apply(tst, 2, sum)
+apply(t(ab.vec), 2, sum)
+dim(t(e%*%hiA0))
+c(((hiA0-mhalf(iA0+n*C0))/n)%*% colSums(e) )
+
+tst
+sum(c(tst))
+sum( c(e) )
+dim(tst)
+dim( e )
+
+fuck = t( crossprod( rbind(c(Rr.T),c(Rc.T)) , t( iA0%*%t(G) ) ) )
+me = rowSums( sum(Rr.T)*C0%*%t(G) )
+mt = t( crossprod( rbind(c(Rr.T),c(Rc.T)) , t( iA0%*%t(G) ) ) ) + rowSums( sum(Rr.T)*C0%*%t(G) )
+
+fuck[,1:5]
+me
+mt[,1:5]
+fuck[1,1:5] + me[1]
+fuck[2,1:5] + me[2]
+
     beta <- tmp$beta
     a <- tmp$a * rvar
     b <- tmp$b * cvar 
@@ -410,32 +593,6 @@ X.T = X
       Sab[1,1]<-Sab[2,2]<-1/rgamma(1,(1+nrow(Y))/2,(1+sum(a^2))/2)
       Sab[1,2]<-Sab[2,1]<-.999*Sab[1,1]   
     }
- 
-# library(inline) ; library(Rcpp) ; library(RcppArmadillo)
-# rcpp_inc <- '
-#   using namespace Rcpp;
-#   using namespace arma;
-# '
-# src <- '
-#   arma::cube x = as<arma::cube>(X);
-#   arma::vec b = as<arma::vec>(beta);
-#   int n = x.n_rows;
-#   int p = b.n_elem;
-#   arma::mat XB = arma::zeros(n, n);
-#   for (int k=0 ; k < p ; ++k){
-#      XB = XB + b(k) * x.slice(k);
-#   }
-#   return(wrap( XB ));
-# '
-
-# Xt = X[,,,1]
-# beta=beta
-
-# fx <- cxxfunction(signature(X="numeric", beta="numeric"), body=src, plugin='RcppArmadillo', rcpp_inc)
-# tst=fx(Xt, beta)
-# mod = Xbeta_cpp(X[,,,1], beta)
-# orig = Xbeta(X[,,,1],beta)
-# identical(mod,orig)
 
     # update rho
     if( dcor ){

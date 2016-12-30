@@ -6,6 +6,29 @@
 
 using namespace Rcpp;
 
+// rbeta_ab_rep_fc_cpp
+List rbeta_ab_rep_fc_cpp(arma::cube zCube, arma::cube XrCube, arma::cube XcCube, arma::cube mXCube, arma::cube mXtCube, arma::cube xxCube, arma::cube xxTCube, arma::mat iSe2, arma::mat Sabs, int k, arma::mat G, arma::mat e, arma::vec colE);
+RcppExport SEXP amen_rbeta_ab_rep_fc_cpp(SEXP zCubeSEXP, SEXP XrCubeSEXP, SEXP XcCubeSEXP, SEXP mXCubeSEXP, SEXP mXtCubeSEXP, SEXP xxCubeSEXP, SEXP xxTCubeSEXP, SEXP iSe2SEXP, SEXP SabsSEXP, SEXP kSEXP, SEXP GSEXP, SEXP eSEXP, SEXP colESEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type zCube(zCubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type XrCube(XrCubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type XcCube(XcCubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type mXCube(mXCubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type mXtCube(mXtCubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type xxCube(xxCubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type xxTCube(xxTCubeSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type iSe2(iSe2SEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type Sabs(SabsSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type G(GSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type e(eSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type colE(colESEXP);
+    rcpp_result_gen = Rcpp::wrap(rbeta_ab_rep_fc_cpp(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, iSe2, Sabs, k, G, e, colE));
+    return rcpp_result_gen;
+END_RCPP
+}
 // Xbeta_cpp
 arma::mat Xbeta_cpp(arma::cube X, arma::vec beta);
 RcppExport SEXP amen_Xbeta_cpp(SEXP XSEXP, SEXP betaSEXP) {

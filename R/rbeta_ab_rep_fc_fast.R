@@ -101,7 +101,7 @@ rbeta_ab_rep_fc_fast <-
     {
       V.b<-solve(Qb)
       M.b<-V.b%*%lb
-      set.seed(6886) ; beta<-c(rmvnorm(1,M.b,V.b))
+      beta<-c(rmvnorm(1,M.b,V.b))
     }
     if(p==0){ beta<-numeric(0) } 
 
@@ -113,13 +113,12 @@ rbeta_ab_rep_fc_fast <-
     #ab.vec.t<-(G%x%diag(n))%*%matrix(W,ncol=1)
     #ab.vec<-solve(iSe2)%*%matrix(ab.vec.t,nrow=2,byrow=T)
     
-    m<-t(t(crossprod(rbind(c(Rr.T),c(Rc.T)),t(iA0%*%t(G)))) + rowSums(sum(Rr.T)*C0%*%t(G)) )
+    m<-t( t( crossprod( rbind(c(Rr.T),c(Rc.T)) , t( iA0%*%t(G) ) ) ) + rowSums( sum(Rr.T)*C0%*%t(G) ) )
     hiA0<-mhalf(iA0)
-    set.seed(6886) ; e<-matrix(rnorm(n*k),n,k) 
+    e<-matrix(rnorm(n*k),n,k) 
     w<-m+ t( t(e%*%hiA0) - c(((hiA0-mhalf(iA0+n*C0))/n)%*% colSums(e) ) )
     ab.vec<- t(w%*%t(G)%*%solve(iSe2))
     
     list(beta=beta,a=ab.vec[1,],b=ab.vec[2,] )  
   }
-
 
