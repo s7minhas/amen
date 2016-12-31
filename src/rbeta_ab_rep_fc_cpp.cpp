@@ -3,9 +3,6 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace arma; 
 using namespace Rcpp; 
-// Environment amen("package:amen");
-// Function mhalf = amen["mhalf"];  
-// Function rmvnorm = amen["rmvnorm"];  
 
 //' Gibbs sampling of additive row and column effects and regression coefficient
 //' with independent replicate relational data
