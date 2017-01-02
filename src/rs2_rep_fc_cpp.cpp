@@ -30,7 +30,6 @@ double rs2_rep_fc_cpp(
 	arma::mat eigValDiagMat = pow(diagmat(eigVal), .5);
 	arma::mat H = eigVec * eigValDiagMat * eigVec.t();
 
-	int N = ET.n_slices;
 	arma::mat tmp = trimatl(arma::ones(ET.n_rows, ET.n_cols));
 	arma::uvec tmpindex = find(tmp==0);
 	arma::mat EM;

@@ -44,6 +44,46 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rrho_mh_rep_cpp
+double rrho_mh_rep_cpp(arma::cube ET, double rho, double s2);
+RcppExport SEXP amen_rrho_mh_rep_cpp(SEXP ETSEXP, SEXP rhoSEXP, SEXP s2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type ET(ETSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    rcpp_result_gen = Rcpp::wrap(rrho_mh_rep_cpp(ET, rho, s2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rs2_rep_fc_cpp
+double rs2_rep_fc_cpp(arma::cube ET, arma::mat rhoMat);
+RcppExport SEXP amen_rs2_rep_fc_cpp(SEXP ETSEXP, SEXP rhoMatSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type ET(ETSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type rhoMat(rhoMatSEXP);
+    rcpp_result_gen = Rcpp::wrap(rs2_rep_fc_cpp(ET, rhoMat));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rUV_sym_fc_cpp
+arma::mat rUV_sym_fc_cpp(arma::mat E, arma::mat U, arma::mat V, double s2, bool shrink);
+RcppExport SEXP amen_rUV_sym_fc_cpp(SEXP ESEXP, SEXP USEXP, SEXP VSEXP, SEXP s2SEXP, SEXP shrinkSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type E(ESEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type U(USEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type V(VSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< bool >::type shrink(shrinkSEXP);
+    rcpp_result_gen = Rcpp::wrap(rUV_sym_fc_cpp(E, U, V, s2, shrink));
+    return rcpp_result_gen;
+END_RCPP
+}
 // Xbeta_cpp
 arma::mat Xbeta_cpp(arma::cube X, arma::vec beta);
 RcppExport SEXP amen_Xbeta_cpp(SEXP XSEXP, SEXP betaSEXP) {

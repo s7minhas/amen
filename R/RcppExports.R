@@ -54,6 +54,67 @@ rbeta_ab_rep_fc_cpp <- function(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, 
     .Call('amen_rbeta_ab_rep_fc_cpp', PACKAGE = 'amen', zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, iSe2, Sabs, k, G, e, colE)
 }
 
+#' Metropolis update for dyadic correlation with independent replicate data
+#' 
+#' Metropolis update for dyadic correlation with independent replicate data. 
+#' 
+#' 
+#' @usage rrho_mh_rep_cpp(E.T, rho, s2 = 1)
+#' @param E.T Array of square residual relational matrix series. The third
+#' dimension of the array is for different replicates. Each slice of the array
+#' according to the third dimension is a square residual relational matrix. 
+#' @param rho current value of rho
+#' @param s2 current value of s2
+#' @return a new value of rho
+#' @author Peter Hoff, Yanjun He, Shahryar Minhas
+#' @export rrho_mh_rep_cpp
+rrho_mh_rep_cpp <- function(ET, rho, s2) {
+    .Call('amen_rrho_mh_rep_cpp', PACKAGE = 'amen', ET, rho, s2)
+}
+
+#' Gibbs update for dyadic variance with independent replicate relational data
+#' 
+#' Gibbs update for dyadic variance with independent replicate relational data
+#' 
+#' 
+#' @usage rs2_rep_fc_cpp(E.T, rho)
+#' @param E.T Array of square residual relational matrix series. The third
+#' dimension of the array is for different replicates. Each slice of the array
+#' according to the third dimension is a square residual relational matrix
+#' @param rho s2 matrix
+#' @return a new value of s2
+#' @author Peter Hoff, Yanjun He, Shahryar Minhas
+#' @export rs2_rep_fc_cpp
+rs2_rep_fc_cpp <- function(ET, rhoMat) {
+    .Call('amen_rs2_rep_fc_cpp', PACKAGE = 'amen', ET, rhoMat)
+}
+
+#' Gibbs sampling of U and V
+#' 
+#' A Gibbs sampler for updating the multiplicative effect matrices U and V
+#' in the symmetric case. In this case \code{U\%*\%t(V)} is symmetric, so
+#' this is parameterized as \code{V=U\%*\%L} where \code{L} is the 
+#' diagonal matrix of eigenvalues of \code{U\%*\%t(V)}. 
+#' 
+#' @usage rUV_sym_fc_cpp(E, U, V, s2 = 1, shrink=TRUE)
+#' @param E square residual relational matrix
+#' @param U current value of U
+#' @param V current value of V
+#' @param s2 dyadic variance
+#' @param shrink adaptively shrink the factors with a hierarchical prior
+#' @return \item{U}{a new value of U} \item{V}{a new value of V}
+#' @author Peter Hoff, Shahryar Minhas
+#' @examples
+#' 
+#' U0<-matrix(rnorm(30,2),30,2) ; V0<-U0%*%diag(c(3,-2)) 
+#' E<- U0%*%t(V0) + matrix(rnorm(30^2),30,30) 
+#' rUV_sym_fc(E,U0,V0) 
+#' 
+#' @export rUV_sym_fc_cpp
+rUV_sym_fc_cpp <- function(E, U, V, s2, shrink) {
+    .Call('amen_rUV_sym_fc_cpp', PACKAGE = 'amen', E, U, V, s2, shrink)
+}
+
 #' Linear combinations of submatrices of an array
 #' 
 #' Computes a matrix of expected values based on an array X of predictors and a

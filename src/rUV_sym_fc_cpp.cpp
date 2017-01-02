@@ -1,21 +1,35 @@
 //Includes/namespaces
 #include <RcppArmadillo.h>
+#include <RcppArmadilloExtensions/sample.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace arma; 
 using namespace Rcpp; 
 
-// wrapper around R's RNG such that we get a uniform distribution over
-// [0,n) as required by the STL algorithm
-inline int randWrapper(const int n) { return floor(unif_rand()*n); }
+// [[Rcpp::export]]
+IntegerVector sample_num(IntegerVector x, int size, bool replace, 
+	NumericVector prob = NumericVector::create() ) {
+  IntegerVector ret = Rcpp::RcppArmadillo::sample(x, size, replace, prob) ;
+  return ret ;
+}
 
-Rcpp::NumericVector randomShuffle(Rcpp::NumericVector a) {
+// [[Rcpp::export]]
+bool matMultVec(arma::mat x, arma::vec y){
+	int nRows = x.n_rows;
+	int nCols = x.n_cols;
 
-    // clone a into b to leave a alone
-    Rcpp::NumericVector b = Rcpp::clone(a);
+	arma::mat xy = arma::zeros(nRows,nCols);
+	if(nRows <= nCols){
+		for(int r = 0 ; r<nRows ; r++){
+		  xy.row(r) = x.row(r) % y.t();
+		}		
+	}
+	if(nCols < nRows){
+		for(int c = 0 ; c<nCols ; c++){
+		  xy.col(c) = x.col(c) % y;
+		}		
+	}		
 
-    std::random_shuffle(b.begin(), b.end(), randWrapper);
-
-    return b;
+	return(xy);
 }
 
 //' Gibbs sampling of U and V
@@ -68,6 +82,20 @@ arma::mat rUV_sym_fc_cpp(
 	if(!shrink){
 		ivDiagMat = diagmat(tmp);
 	}
-	
-	return( ivDiagMat );	
+
+	Rcpp::IntegerVector loopIDs = rep(
+		sample_num( seq_len(U.n_rows), U.n_rows, FALSE  ), 4);
+
+	// int i = loopIDs[2];
+	arma::mat eui = arma::zeros(n,R);
+	arma::vec erow = E.row(9).t();
+	for(int r = 0 ; r<R ; r++){
+	  eui.col(r) = U.col(r) % erow;
+	}
+
+	arma::rowvec euicolsum = sum(eui,0);
+
+	arma::mat l = L % trans((euicolsum - U.row(9) * E(9,9))/s2);
+
+	return( L );	
 }
