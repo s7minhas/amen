@@ -1,95 +1,134 @@
-#' AME model fitting routine for replicated relational data
-#' 
-#' An MCMC routine providing a fit to an additive and multiplicative effects
-#' (AME) regression model to replicated relational data of
-#' various types. 
-#' 
-#' This command provides posterior inference for parameters in AME models of
-#' independent replicated relational data, assuming one of six possible data
-#' types/models:
-#' 
-#' "nrm": A normal AME model.
-#' 
-#' "bin": A binary probit AME model.
-#' 
-#' "ord": An ordinal probit AME model. An intercept is not identifiable in this
-#' model.
-#' 
-#' "cbin": An AME model for censored binary data.  The value of 'odmax'
-#' specifies the maximum number of links each row may have.
-#' 
-#' "frn": An AME model for fixed rank nomination networks. A higher value of
-#' the rank indicates a stronger relationship. The value of 'odmax' specifies
-#' the maximum number of links each row may have.
-#' 
-#' "rrl": An AME model based on the row ranks. This is appropriate if the
-#' relationships across rows are not directly comparable in terms of scale. An
-#' intercept, row random effects and row regression effects are not estimable
-#' for this model.
-#' 
-#' @usage ame_repL(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(model=="rrl")
-#' , cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, model="nrm",
-#' intercept=!is.element(model,c("rrl","ord")),
-#' symmetric=FALSE,
-#' odmax=NULL, seed = 1,
-#' nscan = 10000, burn = 500, odens = 25, plot=TRUE, print = TRUE, gof=TRUE)
-#' @param Y a T length list of n x n relational matrices, where T corresponds to the number of replicates (over time, for example). See
-#' model below for various data types.
-#' @param Xdyad a T length list of n x n x pd arrays of covariates
-#' @param Xrow a T length list of n x pr matrices of nodal row covariates
-#' @param Xcol a T length list of n x pc matrices of nodal column covariates
-#' @param rvar logical: fit row random effects (asymmetric case)?
-#' @param cvar logical: fit column random effects (asymmetric case)? 
-#' @param dcor logical: fit a dyadic correlation (asymmetric case)?
-#' @param nvar logical: fit nodal random effects (symmetric case)? 
-#' @param R integer: dimension of the multiplicative effects (can be zero)
-#' @param model character: one of "nrm","bin","ord","cbin","frn","rrl" - see
-#' the details below
-#' @param intercept logical: fit model with an intercept?
-#' @param symmetric logical: Is the sociomatrix symmetric by design?
-#' @param odmax a scalar integer or vector of length n giving the maximum
-#' number of nominations that each node may make - used for "frn" and "cbin"
-#' models
-#' @param seed random seed
-#' @param nscan number of iterations of the Markov chain (beyond burn-in)
-#' @param burn burn in for the Markov chain
-#' @param odens output density for the Markov chain
-#' @param plot logical: plot results while running?
-#' @param print logical: print results while running?
-#' @param gof logical: calculate goodness of fit statistics?
-#' @return \item{BETA}{posterior samples of regression coefficients}
-#' \item{VC}{posterior samples of the variance parameters}
-#' \item{APM}{posterior mean of additive row effects a} \item{BPM}{posterior
-#' mean of additive column effects b} \item{U}{posterior mean of multiplicative
-#' row effects u} 
-#' \item{V}{posterior mean of multiplicative column effects v (asymmetric case)}
-#' \item{UVPM}{posterior mean of UV}
-#' \item{ULUPM}{posterior mean of ULU (symmetric case)} 
-#' \item{L}{posterior mean of L (symmetric case)} 
-#'  \item{EZ}{estimate of expectation of Z
-#' matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
-#' \item{GOF}{observed (first row) and posterior predictive (remaining rows)
-#' values of four goodness-of-fit statistics}
-#' @author Peter Hoff, Yanjun He, Shahryar Minhas
-#' @examples
-#' 
-#' data(YX_bin_list) 
-#' fit<-ame_repL(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,model="bin")
-#' # you should run the Markov chain much longer than this
-#' 
-#' @export ame_repL
-ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
-           rvar = !(model=="rrl") , cvar = TRUE, dcor = !symmetric, 
-           nvar=TRUE, 
-           R = 0,
-           model="nrm",
-           intercept=!is.element(model,c("rrl","ord")), 
-           symmetric=FALSE, 
-           odmax=NULL,
-           seed = 1, nscan = 10000, burn = 500, odens = 25,
-           plot=TRUE, print = TRUE, gof=TRUE)
-{ 
+# #' AME model fitting routine for replicated relational data
+# #' 
+# #' An MCMC routine providing a fit to an additive and multiplicative effects
+# #' (AME) regression model to replicated relational data of
+# #' various types. 
+# #' 
+# #' This command provides posterior inference for parameters in AME models of
+# #' independent replicated relational data, assuming one of six possible data
+# #' types/models:
+# #' 
+# #' "nrm": A normal AME model.
+# #' 
+# #' "bin": A binary probit AME model.
+# #' 
+# #' "ord": An ordinal probit AME model. An intercept is not identifiable in this
+# #' model.
+# #' 
+# #' "cbin": An AME model for censored binary data.  The value of 'odmax'
+# #' specifies the maximum number of links each row may have.
+# #' 
+# #' "frn": An AME model for fixed rank nomination networks. A higher value of
+# #' the rank indicates a stronger relationship. The value of 'odmax' specifies
+# #' the maximum number of links each row may have.
+# #' 
+# #' "rrl": An AME model based on the row ranks. This is appropriate if the
+# #' relationships across rows are not directly comparable in terms of scale. An
+# #' intercept, row random effects and row regression effects are not estimable
+# #' for this model.
+# #' 
+# #' @usage ame_repL(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(model=="rrl")
+# #' , cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, model="nrm",
+# #' intercept=!is.element(model,c("rrl","ord")),
+# #' symmetric=FALSE,
+# #' odmax=NULL, seed = 1,
+# #' nscan = 10000, burn = 500, odens = 25, plot=TRUE, print = TRUE, gof=TRUE)
+# #' @param Y a T length list of n x n relational matrices, where T corresponds to the number of replicates (over time, for example). See
+# #' model below for various data types.
+# #' @param Xdyad a T length list of n x n x pd arrays of covariates
+# #' @param Xrow a T length list of n x pr matrices of nodal row covariates
+# #' @param Xcol a T length list of n x pc matrices of nodal column covariates
+# #' @param rvar logical: fit row random effects (asymmetric case)?
+# #' @param cvar logical: fit column random effects (asymmetric case)? 
+# #' @param dcor logical: fit a dyadic correlation (asymmetric case)?
+# #' @param nvar logical: fit nodal random effects (symmetric case)? 
+# #' @param R integer: dimension of the multiplicative effects (can be zero)
+# #' @param model character: one of "nrm","bin","ord","cbin","frn","rrl" - see
+# #' the details below
+# #' @param intercept logical: fit model with an intercept?
+# #' @param symmetric logical: Is the sociomatrix symmetric by design?
+# #' @param odmax a scalar integer or vector of length n giving the maximum
+# #' number of nominations that each node may make - used for "frn" and "cbin"
+# #' models
+# #' @param seed random seed
+# #' @param nscan number of iterations of the Markov chain (beyond burn-in)
+# #' @param burn burn in for the Markov chain
+# #' @param odens output density for the Markov chain
+# #' @param plot logical: plot results while running?
+# #' @param print logical: print results while running?
+# #' @param gof logical: calculate goodness of fit statistics?
+# #' @return \item{BETA}{posterior samples of regression coefficients}
+# #' \item{VC}{posterior samples of the variance parameters}
+# #' \item{APM}{posterior mean of additive row effects a} \item{BPM}{posterior
+# #' mean of additive column effects b} \item{U}{posterior mean of multiplicative
+# #' row effects u} 
+# #' \item{V}{posterior mean of multiplicative column effects v (asymmetric case)}
+# #' \item{UVPM}{posterior mean of UV}
+# #' \item{ULUPM}{posterior mean of ULU (symmetric case)} 
+# #' \item{L}{posterior mean of L (symmetric case)} 
+# #'  \item{EZ}{estimate of expectation of Z
+# #' matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
+# #' \item{GOF}{observed (first row) and posterior predictive (remaining rows)
+# #' values of four goodness-of-fit statistics}
+# #' @author Peter Hoff, Yanjun He, Shahryar Minhas
+# #' @examples
+# #' 
+# #' data(YX_bin_list) 
+# #' fit<-ame_repL(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,model="bin")
+# #' # you should run the Markov chain much longer than this
+# #' 
+# #' @export ame_repL
+# ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
+#            rvar = !(model=="rrl") , cvar = TRUE, dcor = !symmetric, 
+#            nvar=TRUE, 
+#            R = 0,
+#            model="nrm",
+#            intercept=!is.element(model,c("rrl","ord")), 
+#            symmetric=FALSE, 
+#            odmax=NULL,
+#            seed = 1, nscan = 10000, burn = 500, odens = 25,
+#            plot=TRUE, print = TRUE, gof=TRUE)
+# { 
 
+
+rm(list=ls())
+library(amen)
+
+# # data(YX_bin_long)
+
+# # Y=YX_bin_long$Y ; Xdyad=YX_bin_long$X ; Xrow=NULL ;
+Xcol=NULL ; R=2
+burn=1 ; nscan=5 ; odens=1 ; model="bin" ; symmetric=TRUE
+rvar = !(model=="rrl"); cvar = TRUE ; dcor = !symmetric
+nvar=TRUE
+intercept=!is.element(model,c("rrl","ord"))
+intercept=FALSE
+# odmax=rep(max(apply(Y>0,c(1,3),sum,na.rm=TRUE)),nrow(Y[,,1]))
+seed=6886
+plot=FALSE ;  print = FALSE ;  gof=TRUE
+
+# # restructure Y
+# Y <- lapply(1:dim(YX_bin_long$Y)[3], function(t){YX_bin_long$Y[,,t]})
+# Xdyad <- lapply(1:dim(YX_bin_long$X)[4], function(t){YX_bin_long$X[,,,t]})
+
+# # add labels
+# set.seed(6886) ; actors <- as.character( sample(300:700,size=50,replace=FALSE) )
+# Y <- lapply(Y, function(y){ rownames(y) <- actors ; colnames(y) <- actors ; return(y) })
+# varLabs = paste0('dyadVar',1:3)
+# Xdyad <- lapply(Xdyad, function(x){ rownames(x) <- actors ; colnames(x) <- actors ; dimnames(x)[[3]] <- varLabs ; return(x) })
+
+# YX_bin_list <- list(Y=Y, X=Xdyad)
+    
+# set.seed(6886) ; toRem = sample(1:length(actors), 5)
+# toRem = actors[toRem]
+# Y[[1]] = Y[[1]][-which(actors %in% toRem),-which(actors %in% toRem)]
+# Y[[2]] = Y[[2]][-which(actors %in% toRem),-which(actors %in% toRem)]
+# Xdyad[[1]] = Xdyad[[1]][-which(actors %in% toRem),-which(actors %in% toRem),]
+# Xdyad[[2]] = Xdyad[[2]][-which(actors %in% toRem),-which(actors %in% toRem),]
+
+# load milner mansfield data
+load('~/Dropbox/Research/netsMatter/replications/mansfield_milner_2012/inputData/amenData.rda')
+Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
   # set random seed 
   set.seed(seed)
 
@@ -313,16 +352,74 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   # MCMC
   have_coda<-suppressWarnings(try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
 
-  for (s in 1:(nscan + burn) ){ 
-
+  # for (s in 1:(nscan + burn) ){ 
+   s=1
+   # fuuuuuck2=system.time(
+    # for(s in 1:2){
     # update Z
     E.nrm<-array(dim=dim(Z))
+
+library(inline) ; library(Rcpp); library(RcppArmadillo)
+rcpp_inc = '
+  using namespace Rcpp;
+  using namespace arma;
+'
+
+src = '
+  arma::mat Xbeta = as<arma::mat>(Xbetax);
+  arma::mat ab = as<arma::mat>(abx);
+  arma::mat U = as<arma::mat>(Ux);
+  arma::mat V = as<arma::mat>(Vx);
+
+  arma::mat EZ = Xbeta + ab + U*V.t();
+  return(wrap(EZ));
+'
+
+fx = cxxfunction(
+  signature(Xbetax='numeric', abx='numeric', Ux='numeric', Vx='numeric'),
+  body=src, plugin = 'RcppArmadillo', rcpp_inc)
+
+src = '
+  Rcpp::List Xlist = as<Rcpp::List>(Xlistx);
+  arma::vec beta = as<arma::vec>(betax);
+  arma::mat ab = as<arma::mat>(abx);
+  arma::mat U = as<arma::mat>(Ux);
+  arma::mat V = as<arma::mat>(Vx);
+
+  int N = Xlist.size(); 
+  int n = ab.n_rows;
+  int p = beta.size();
+
+  arma::cube EZ = arma::zeros(n,n,N);
+  for(int t=0 ; t<N ; ++t){
+
+    arma::cube Xt = Xlist[t];
+    arma::mat Xbeta = arma::zeros(n,n);
+    for(int i=0 ; i<p ; ++i){
+      Xbeta = Xbeta + beta(i) * Xt.slice(i);
+    }
+
+    EZ.slice(t) = Xbeta + ab + U*V.t();
+  }
+
+  return(wrap(EZ));
+'
+
+fx = cxxfunction(
+  signature(Xlistx='numeric', betax='numeric', abx='numeric', Ux='numeric', Vx='numeric'),
+  body=src, plugin = 'RcppArmadillo', rcpp_inc)
+
+tst = fx(Xlist, beta, outer(a,b,'+'), U, V)
+
+Z2 = Z
+
+startOld = proc.time()
     for(t in 1:N ){
       EZ<-Xbeta_cpp(array(X[,,,t],dim(X)[1:3]), beta)+ outer(a, b,"+")+ U%*%t(V) # move out of loop
       if(model=="nrm" ){ 
         Z[,,t]<-rZ_nrm_fc(Z[,,t],EZ,rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ
       }
-      if(model=="bin"){ Z[,,t]<-rZ_bin_fc(Z[,,t],EZ,rho,Y[,,t]) }
+      if(model=="bin"){ set.seed(6886) ; Z[,,t]<-rZ_bin_fc(Z[,,t],EZ,rho,Y[,,t]) }
       if(model=="ord"){ Z[,,t]<-rZ_ord_fc(Z[,,t],EZ,rho,Y[,,t]) }
       if(model=="cbin"){Z[,,t]<-rZ_cbin_fc(Z[,,t],EZ,rho,Y[,,t],odmax,odobs)}
       if(model=="frn" ){ 
@@ -330,12 +427,205 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       }
       if(model=="rrl"){ Z[,,t]<-rZ_rrl_fc(Z[,,t],EZ,rho,Y[,,t],YL[[t]]) } 
     }
+endOld = proc.time()
+
+startNew = proc.time()
+    for(t in 1:N ){
+      EZ2<-tst[,,t] # move out of loop
+      if(model=="nrm" ){ 
+        Z2[,,t]<-rZ_nrm_fc(Z2[,,t],EZ2,rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z2[,,t]-EZ2
+      }
+      if(model=="bin"){ set.seed(6886) ;  Z2[,,t]<-rZ_bin_fc(Z2[,,t],EZ2,rho,Y[,,t]) }
+      if(model=="ord"){ Z2[,,t]<-rZ_ord_fc(Z2[,,t],EZ2,rho,Y[,,t]) }
+      if(model=="cbin"){Z2[,,t]<-rZ_cbin_fc(Z2[,,t],EZ2,rho,Y[,,t],odmax,odobs)}
+      if(model=="frn" ){ 
+        Z2[,,t]<-rZ_frn_fc(Z2[,,t],EZ2,rho,Y[,,t],YL[[t]],odmax,odobs)
+      }
+      if(model=="rrl"){ Z2[,,t]<-rZ_rrl_fc(Z2[,,t],EZ2,rho,Y[,,t],YL[[t]]) } 
+    }
+endNew = proc.time()
+
+dimnames(Z) = NULL
+identical(Z, Z2)
+sum(Z)
+sum(Z2)
+Z[1:3,1:3,1]
+Z2[1:3,1:3,1]
+
+endOld - startOld
+
+endNew - startNew
 
     # update s2
     if (model=="nrm"){ s2<-rs2_rep_fc(E.nrm,rho) } # somewhat slow
       
     # update beta, a b
-    tmp <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)
+    source('~/Research/software/amen/R/rbeta_ab_rep_fc_fast.R')
+    source('~/Research/software/amen/R/rbeta_ab_rep_fc.R')
+
+Z.T = sweep(Z,c(1,2),U%*%t(V))
+X.T = X
+
+    # iSe2 <- mhalf( solve( matrix(c(1,rho,rho,1),2)*s2 ) ) ; td <- iSe2[1,1] ; to <- iSe2[1,2]
+    # mXsLong <- array(unlist(lapply(1:N, function(t){ td*mXLong[,,t] + to*mXtLong[,,t] })), dim=dim(mXLong))
+
+###
+N<-dim(X.T)[4]
+p<-dim(X.T)[3] 
+Se<-matrix(c(1,rho,rho,1),2,2)*s2
+iSe2<-mhalf(solve(Se))
+td<-iSe2[1,1] ; to<-iSe2[1,2]
+Sabs<-iSe2%*%Sab%*%iSe2
+tmp<-eigen(Sabs)
+k<-sum(zapsmall(tmp$val)>0 )
+###
+
+
+library(inline) ; library(Rcpp) ; library(RcppArmadillo)
+iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
+tmp <- eigen(Sabs) ; k<-sum(zapsmall(tmp$val)>0 )
+G<-tmp$vec[,1:k] %*% sqrt(diag(tmp$val[1:k],nrow=k))
+e <- matrix(rnorm(n*k),n,k) ; colE <- colSums(e)
+
+rcpp_inc <- '
+  using namespace Rcpp;
+  using namespace arma;
+  Environment amen("package:amen");
+  Function mhalf = amen["mhalf"];  
+  Function rmvnorm = amen["rmvnorm"];  
+'
+src <- '
+  arma::cube zCube = as<arma::cube>(Z);
+  arma::cube XrCube = as<arma::cube>(XrLong);
+  arma::cube XcCube = as<arma::cube>(XcLong);
+  arma::cube mXCube = as<arma::cube>(mXLong);
+  arma::cube mXtCube = as<arma::cube>(mXtLong);
+  arma::cube xxCube = as<arma::cube>(xxLong);
+  arma::cube xxTCube = as<arma::cube>(xxTLong);
+  arma::mat iSe2 = as<arma::mat>(iSe2x);
+  arma::mat Sabs = as<arma::mat>(Sabsx);
+  double td = iSe2(0,0);
+  double to = iSe2(0,1);
+  int k = as<int>(kx);
+  arma::mat G = as<arma::mat>(Gx);
+  arma::mat e = as<arma::mat>(ex);
+  arma::vec colE = as<arma::vec>(colEx);
+
+  int N = zCube.n_slices;  
+  int n = zCube.n_rows;
+  int p = XrCube.n_cols;
+
+  arma::vec lb = arma::zeros(p);
+  arma::mat Qb = arma::zeros(p, p);
+  arma::vec ZrT = arma::zeros(n);
+  arma::vec ZcT = arma::zeros(n);
+  arma::mat XrT = arma::zeros(n,p);
+  arma::mat XcT = arma::zeros(n,p);
+
+  for(int t=0 ; t < N ; ++t){
+    arma::mat mXs = td * mXCube.slice(t) + to*mXtCube.slice(t);
+    arma::mat XXs = (pow(to, 2)+pow(td, 2))*xxCube.slice(t) + 2*to*td*xxTCube.slice(t);
+    arma::mat Zs = td*zCube.slice(t) + to*zCube.slice(t).t();
+
+    arma::vec zr(n);
+    for (int i=0 ; i < n ; ++i){
+      zr[i] = arma::sum(zCube.slice(t).row(i));
+    }
+
+    arma::vec zc(n);
+    for (int j=0 ; j < n ; ++j){
+      zc[j] = arma::sum(zCube.slice(t).col(j));
+    }
+
+    if ( p > 0 ) {
+      lb = lb + mXs.t() * vectorise(Zs);
+      Qb = Qb + XXs + ( xxCube.slice(t)/mXs.n_rows )/N;
+    }
+
+    arma::mat Xsr = td * XrCube.slice(t) + to*XcCube.slice(t);
+    arma::mat Xsc = td * XcCube.slice(t) + to*XrCube.slice(t);
+
+    ZrT = ZrT + zr;
+    ZcT = ZcT + zc;
+    XrT = XrT + Xsr;
+    XcT = XcT + Xsc;
+  }
+
+  arma::mat ab = arma::zeros(n,2);
+  arma::mat K = arma::mat("0 1; 1 0");
+  arma::mat idmatk = eye<mat>(k,k);
+
+  arma::mat A = N*n*G.t()*G + idmatk;
+  arma::mat B = N*G.t()*K*G;
+  arma::mat iA0 = inv(A);
+  arma::mat C0 = -inv(A + n*B)*B*iA0;
+
+  arma::mat iA = G * iA0 * G.t();
+  arma::mat C = G * C0 * G.t();
+
+  arma::mat idmatn = eye<mat>(n,n);
+  arma::mat onesmatn = ones<mat>(n,n);
+  arma::mat H = arma::kron(iA, idmatn) + arma::kron(C,onesmatn);
+  arma::mat Hrr = H.submat(0,0,n-1,n-1);
+  arma::mat Hrc = H.submat(0,n,n-1,2*n-1);
+  arma::mat Hcr = H.submat(n,0,2*n-1,n-1);
+  arma::mat Hcc = H.submat(n,n,2*n-1,2*n-1);
+  Qb = Qb-XrT.t()*Hrr*XrT-XcT.t()*Hcr*XrT-XrT.t()*Hrc*XcT-XcT.t()*Hcc*XcT;
+  lb = lb-XrT.t()*Hrr*ZrT-XcT.t()*Hcr*ZrT-XrT.t()*Hrc*ZcT-XcT.t()*Hcc*ZcT;
+
+  arma::mat Vb = inv(Qb);
+  arma::mat Mb = Vb * lb;
+  arma::vec beta = as<arma::vec>(rmvnorm(1,Mb,Vb));
+
+  arma::mat RrT = ZrT - XrT * beta; 
+  arma::mat RcT = ZcT - XcT * beta; 
+
+  arma::mat RTcrossiA0G = join_rows(RrT, RcT) * (iA0 * G.t()).t();
+  arma:vec RrTC0G = sum(accu(RrT) * C0 * G.t(),1);
+  arma::mat m = arma::zeros(n,RTcrossiA0G.n_cols);
+  for( int r=0 ; r < RTcrossiA0G.n_cols ; r++ ) {
+    m.col(r) = RTcrossiA0G.col(r) + RrTC0G[r];
+  }
+
+  arma::mat hiA0 = as<arma::mat>(mhalf(iA0));
+  arma::mat ehiA0 = (e * hiA0).t();
+  arma::mat iA0nCo = as<arma::mat>(mhalf(iA0+n*C0));
+  arma::mat hiA0nCo = (hiA0-iA0nCo)/n;
+  arma::vec ugh = hiA0nCo * colE;
+  arma::mat w = arma::zeros(n,RTcrossiA0G.n_cols);
+  for( int r=0 ; r < RTcrossiA0G.n_cols ; r++ ) {
+    w.col(r) = m.col(r) + (ehiA0.row(r) - ugh[r]).t();
+  }
+
+  arma::mat abVec = w * G.t() * inv(iSe2);
+  arma::vec a = abVec.col(0);
+  arma::vec b = abVec.col(1);
+  List out = List::create(beta, a, b);
+
+  return(wrap( out ));
+'
+ugh=300
+fuck=500
+set.seed(6886) ; tst1 = array(rnorm(ugh*ugh*fuck), dim=c(ugh,ugh,fuck)) ; set.seed(4324) ; tst2 = array(rnorm(ugh*ugh*fuck), dim=c(ugh,ugh,fuck))
+system.time( tst3 <- tst1 - tst2 )
+
+
+
+fx <- cxxfunction(signature(
+  Z="numeric", 
+  XrLong="numeric", XcLong="numeric",
+  mXLong="numeric", mXtLong="numeric",
+  xxLong="numeric", xxTLong="numeric",  
+  iSe2x="numeric", Sabsx="numeric",
+  kx="numeric", Gx="numeric",
+  ex="numeric", colEx="numeric"
+  ), body=src, plugin='RcppArmadillo', rcpp_inc)
+
+    set.seed(6886) ; system.time(tmp <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)) # slow here
+    set.seed(6886) ; system.time(tmp2 <- rbeta_ab_rep_fc_fast(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2,XrLong, XcLong, mXLong, mXtLong, xxLong, xxTLong)) # slow here
+    set.seed(6886) ; system.time(tmp3 <- fx( Z=Z.T, XrLong=XrLong, XcLong=XcLong, mXLong=mXLong, mXtLong=mXtLong, xxLong=xxLong, xxTLong=xxTLong, iSe2x=iSe2, Sabsx=Sabs, kx=k, Gx=G, ex=e, colEx=colE ))
+    set.seed(6886) ; system.time(tmp4 <- rbeta_ab_rep_fc_cpp( zCube=Z.T, XrCube=XrLong, XcCube=XcLong, mXCube=mXLong, mXtCube=mXtLong, xxCube=xxLong, xxTCube=xxTLong, iSe2=iSe2, Sabs=Sabs, k=k, G=G, e=e, colE=colE ))
+
     beta <- tmp$beta
     a <- tmp$a * rvar
     b <- tmp$b * cvar 
@@ -390,6 +680,8 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
 
       U<-UV$U ; V<-UV$V
     }
+  })
+   print(fuuuuuck2)
 
     # burn-in countdown
     if(s%%odens==0&s<=burn){cat(round(100*s/burn,2)," pct burnin complete \n")}
@@ -552,6 +844,12 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
       YPM=YPM,GOF=GOF)
   } 
+
+# summStats = function(x){ c( mu=mean(x), sd=sd(x), med=median(x), quantile(x, probs=c(0.025,0.975)) ) }
+# round(t(apply(fit$BETA, 2, summStats)),2)
+# library(reshape2) ; library(ggplot2)
+# ugh = melt(fit$BETA)
+# ggplot(ugh, aes(x=Var1, y=value)) + geom_line() + facet_wrap(~Var2, scales='free')
 
   class(fit) <- "ame"
   fit

@@ -27,3 +27,4 @@
 *.so
 *.dll
 inst/doc
+.Rproj.user

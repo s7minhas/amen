@@ -4,6 +4,33 @@
 using namespace arma; 
 using namespace Rcpp; 
 
+arma::mat mhalf_cpp(
+	arma::mat M
+	) {
+
+	arma::vec eigVal;
+	arma::mat eigVec;
+	arma::eig_sym(eigVal, eigVec, M);
+
+	arma::mat eigValDiagMat = pow(diagmat(eigVal), .5);
+	arma::mat tmp = eigVec * eigValDiagMat * eigVec.t();
+
+	return(tmp);
+}
+
+arma::vec rmvnorm_cpp(
+	arma::vec mu, arma::mat Sigma
+	) {
+	int n = 1;
+	arma::mat E = rnorm( n * mu.size() ) ; E.reshape(n, mu.size());
+	arma::vec tmp = ( E * chol(Sigma) ).t();
+	for(int i=0 ; i < tmp.n_rows ; i++){
+		tmp.row(i) = tmp.row(i) + mu[i];
+	}
+
+	return( tmp );
+}
+
 //' Gibbs sampling of additive row and column effects and regression coefficient
 //' with independent replicate relational data
 //' 
@@ -116,7 +143,7 @@ List rbeta_ab_rep_fc_cpp(
 
   	arma::mat Vb = inv(Qb);
   	arma::mat Mb = Vb * lb;
-  	arma::vec beta = as<arma::vec>(amen::rmvnorm(1,Mb,Vb));
+  	arma::vec beta = rmvnorm_cpp(Mb,Vb);
   // }
 
   // if ( p == 0 ) {
@@ -134,9 +161,9 @@ List rbeta_ab_rep_fc_cpp(
     m.col(r) = RTcrossiA0G.col(r) + RrTC0G[r];
   }
 
-  arma::mat hiA0 = as<arma::mat>(amen::mhalf(iA0));
+  arma::mat hiA0 = mhalf_cpp(iA0);
   arma::mat ehiA0 = (e * hiA0).t();
-  arma::mat iA0nCo = as<arma::mat>(amen::mhalf(iA0+n*C0));
+  arma::mat iA0nCo = mhalf_cpp(iA0+n*C0);
   arma::mat hiA0nCo = (hiA0-iA0nCo)/n;
   arma::vec ugh = hiA0nCo * colE;
   arma::mat w = arma::zeros(n,RTcrossiA0G.n_cols);
@@ -148,6 +175,11 @@ List rbeta_ab_rep_fc_cpp(
   arma::vec a = abVec.col(0);
   arma::vec b = abVec.col(1);
 
-  return(Rcpp::List::create(beta, a, b));
+  return(
+  	Rcpp::List::create(
+  		Rcpp::Named("beta")=beta,
+  		Rcpp::Named("a")=a,
+  		Rcpp::Named("b")=b )
+  );
 
 }
