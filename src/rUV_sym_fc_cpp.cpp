@@ -1,15 +1,8 @@
 //Includes/namespaces
 #include <RcppArmadillo.h>
-#include <RcppArmadilloExtensions/sample.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace arma; 
 using namespace Rcpp; 
-
-IntegerVector sample_num(IntegerVector x, int size, bool replace, 
-	NumericVector prob = NumericVector::create() ) {
-  IntegerVector ret = Rcpp::RcppArmadillo::sample(x, size, replace, prob) ;
-  return ret ;
-}
 
 arma::mat matMultVec(arma::mat x, arma::vec y){
 	int nRows = x.n_rows;
@@ -43,20 +36,22 @@ arma::mat matMultVec(arma::mat x, arma::vec y){
 //' @param V current value of V
 //' @param s2 dyadic variance
 //' @param shrink adaptively shrink the factors with a hierarchical prior
+//' @param uLoopIDs vector of rows to iteratively loop through
+//' when updating U
 //' @return \item{U}{a new value of U} \item{V}{a new value of V}
 //' @author Peter Hoff, Shahryar Minhas
 //' @examples
 //' 
 //' U0<-matrix(rnorm(30,2),30,2) ; V0<-U0%*%diag(c(3,-2)) 
 //' E<- U0%*%t(V0) + matrix(rnorm(30^2),30,30) 
-//' rUV_sym_fc_cpp(E,U0,V0) 
+//' rUV_sym_fc_cpp(E,U0,V0,s2=1,shrink=TRUE,uLoopIDs=rep( sample(1:nrow(E)),4)-1 )
 //' 
 //' @export rUV_sym_fc_cpp
 // [[Rcpp::export]]
 
 List rUV_sym_fc_cpp(
 	arma::mat E, arma::mat U, arma::mat V, 
-	double s2, bool shrink) {
+	double s2, bool shrink, NumericVector uLoopIDs) {
 
 	int R = U.n_cols; int n = U.n_rows;
 	arma::mat L = diagmat( V.row(0)/U.row(0)  );
@@ -71,7 +66,7 @@ List rUV_sym_fc_cpp(
 		shape = (2+n)/2;
 		scale = (1+sum(pow(U,2),0))/2;
 		for(int r=0 ; r<R ; r++){
-			ivU[r] = rgamma( shape, 1/scale[r] )[0];
+			ivU[r] = rgamma(1, shape, 1/scale[r] )[0];
 		}
 		ivDiagMat = diagmat(ivU);
 	}
@@ -81,14 +76,8 @@ List rUV_sym_fc_cpp(
 		ivDiagMat = diagmat(tmp);
 	}
 
-	// Rcpp::IntegerVector loopIDs = rep(
-	// 	sample_num( seq_len(U.n_rows), U.n_rows, FALSE  ), 4);
-
-	// need to add in loops ids to simulate for(i in rep(sample(1:n),4))
-	// just index loopIDs in line 90 before running fn code
-	for(int i = 0; i<n ; i++){
-	// for(int s = 0; s<loopIDs ; s++){
-	// 	int i = loopIDs[s];
+	for(int s = 0; s<uLoopIDs.size() ; ++s){
+		int i = uLoopIDs[s];
 		arma::vec erow = E.row(i).t();
 		arma::mat eui = matMultVec(U, erow);
 	
@@ -103,9 +92,7 @@ List rUV_sym_fc_cpp(
 	arma::mat tmponesmat = trimatl(arma::ones(E.n_rows, E.n_cols));
 	arma::uvec tmpindex = find(tmponesmat==0);	
 
-	// arma::vec l_vec; arma::vec iq_vec;
-	// for(int r = 0 ; r<R ; r++){
-	int r = 0;
+	for(int r = 0 ; r<R ; r++){
 		arma::mat Usmall = U; Usmall.shed_col(r);
 		arma::mat Lsmall = L; Lsmall.shed_col(r); Lsmall.shed_row(r);
 		arma::mat Er = E - Usmall * Lsmall * Usmall.t();
@@ -113,26 +100,13 @@ List rUV_sym_fc_cpp(
 		double l = accu(lMat.elem( tmpindex ))/s2;
 		arma::mat uut2 = pow(U.col(r) * U.col(r).t(), 2);
 		double iq = 1/(1+accu(uut2.elem(tmpindex))/s2);
-		// l_vec[r]=l; iq_vec[r]=iq;
-		NumericVector rand = rnorm(iq*l, pow(iq,.5) );
-		L(r,r) = rand[0];
-	// }
+		L(r,r) = rnorm(1, iq*l, pow(iq,.5) )[0];
+	}
 
 	return(
 		Rcpp::List::create(
 			Rcpp::Named("U")=U,
-			Rcpp::Named("V")=U*L,
-			Rcpp::Named("Usmall")=Usmall,
-			Rcpp::Named("Lsmall")=Lsmall,
-			Rcpp::Named("Er")=Er,
-			Rcpp::Named("lMat")=lMat,
-			Rcpp::Named("l")=l,
-			Rcpp::Named("iq")=iq,
-			Rcpp::Named("rand")=rand,
-			Rcpp::Named("L")=L
-			// Rcpp::Named("l_vec")=l_vec,
-			// Rcpp::Named("iq_vec")=iq_vec
-			// ,Rcpp::Named("loopIDs")=loopIDs
+			Rcpp::Named("V")=U*L
 			)		
 		);	
 }
