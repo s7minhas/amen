@@ -13,7 +13,7 @@ IntegerVector sample_num(IntegerVector x, int size, bool replace,
 }
 
 // [[Rcpp::export]]
-bool matMultVec(arma::mat x, arma::vec y){
+arma::mat matMultVec(arma::mat x, arma::vec y){
 	int nRows = x.n_rows;
 	int nCols = x.n_cols;
 
@@ -56,7 +56,7 @@ bool matMultVec(arma::mat x, arma::vec y){
 //' @export rUV_sym_fc_cpp
 // [[Rcpp::export]]
 
-arma::mat rUV_sym_fc_cpp(
+List rUV_sym_fc_cpp(
 	arma::mat E, arma::mat U, arma::mat V, 
 	double s2, bool shrink) {
 
@@ -86,16 +86,36 @@ arma::mat rUV_sym_fc_cpp(
 	Rcpp::IntegerVector loopIDs = rep(
 		sample_num( seq_len(U.n_rows), U.n_rows, FALSE  ), 4);
 
-	// int i = loopIDs[2];
-	arma::mat eui = arma::zeros(n,R);
-	arma::vec erow = E.row(9).t();
+	for(int i = 0; i<n ; i++){
+		arma::vec erow = E.row(i).t();
+		arma::mat eui = matMultVec(U, erow);
+	
+		arma::rowvec euicolsum = sum(eui,0);
+	
+		arma::mat l = L * trans((euicolsum - U.row(i) * E(i,i))/s2);
+		arma::mat iQ = inv( ivDiagMat + L * ( (U.t() * U) - (U.row(i).t() * U.row(i)) ) * L/s2 );
+		arma::vec randNormDraw = rnorm(R);
+		U.row(i) = trans(iQ * l + trans(chol(iQ)) * randNormDraw);
+	}
+	
+	arma::mat tmponesmat = trimatl(arma::ones(E.n_rows, E.n_cols));
+	arma::uvec tmpindex = find(tmponesmat==0);	
+
 	for(int r = 0 ; r<R ; r++){
-	  eui.col(r) = U.col(r) % erow;
+		arma::mat Usmall = U; Usmall.shed_col(r);
+		arma::mat Lsmall = L; Lsmall.shed_col(r); Lsmall.shed_row(r);
+		arma::mat Er = E - Usmall * Lsmall * Usmall.t();
+		arma::mat lMat = Er % ( U.col(r) * U.col(r).t() );
+		double l = accu(lMat.elem( tmpindex ))/s2;
+		arma::mat uut2 = pow(U.col(r) * U.col(r).t(), 2);
+		double iq = 1/(1+accu(uut2.elem(tmpindex))/s2);
+		L(r,r) = R::rnorm(iq*l, pow(iq,.5) );
 	}
 
-	arma::rowvec euicolsum = sum(eui,0);
-
-	arma::mat l = L % trans((euicolsum - U.row(9) * E(9,9))/s2);
-
-	return( L );	
+	return(
+		Rcpp::List::create(
+			Rcpp::Named("U")=U,
+			Rcpp::Named("V")=U*L
+			)		
+		);	
 }
