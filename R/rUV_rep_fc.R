@@ -27,7 +27,7 @@ rUV_rep_fc <-
     UV<-cbind(U,V)
     if(shrink)
     {
-     Suv<-solve(rwish(solve(diag(nrow=2*R)+t(UV)%*%UV),n+R+2))
+     Suv<-solve( rwish(solve( diag(nrow=2*R) +t(UV)%*%UV) ,n+R+2) )
     }
     if(!shrink){ Suv<-diag(n,nrow=2*R)  }
 

@@ -5,14 +5,12 @@
 using namespace arma; 
 using namespace Rcpp; 
 
-// [[Rcpp::export]]
 IntegerVector sample_num(IntegerVector x, int size, bool replace, 
 	NumericVector prob = NumericVector::create() ) {
   IntegerVector ret = Rcpp::RcppArmadillo::sample(x, size, replace, prob) ;
   return ret ;
 }
 
-// [[Rcpp::export]]
 arma::mat matMultVec(arma::mat x, arma::vec y){
 	int nRows = x.n_rows;
 	int nCols = x.n_cols;
@@ -51,7 +49,7 @@ arma::mat matMultVec(arma::mat x, arma::vec y){
 //' 
 //' U0<-matrix(rnorm(30,2),30,2) ; V0<-U0%*%diag(c(3,-2)) 
 //' E<- U0%*%t(V0) + matrix(rnorm(30^2),30,30) 
-//' rUV_sym_fc(E,U0,V0) 
+//' rUV_sym_fc_cpp(E,U0,V0) 
 //' 
 //' @export rUV_sym_fc_cpp
 // [[Rcpp::export]]
@@ -73,7 +71,7 @@ List rUV_sym_fc_cpp(
 		shape = (2+n)/2;
 		scale = (1+sum(pow(U,2),0))/2;
 		for(int r=0 ; r<R ; r++){
-			ivU[r] = R::rgamma( shape, 1/scale[r] );
+			ivU[r] = rgamma( shape, 1/scale[r] )[0];
 		}
 		ivDiagMat = diagmat(ivU);
 	}
@@ -83,10 +81,14 @@ List rUV_sym_fc_cpp(
 		ivDiagMat = diagmat(tmp);
 	}
 
-	Rcpp::IntegerVector loopIDs = rep(
-		sample_num( seq_len(U.n_rows), U.n_rows, FALSE  ), 4);
+	// Rcpp::IntegerVector loopIDs = rep(
+	// 	sample_num( seq_len(U.n_rows), U.n_rows, FALSE  ), 4);
 
+	// need to add in loops ids to simulate for(i in rep(sample(1:n),4))
+	// just index loopIDs in line 90 before running fn code
 	for(int i = 0; i<n ; i++){
+	// for(int s = 0; s<loopIDs ; s++){
+	// 	int i = loopIDs[s];
 		arma::vec erow = E.row(i).t();
 		arma::mat eui = matMultVec(U, erow);
 	
@@ -101,7 +103,9 @@ List rUV_sym_fc_cpp(
 	arma::mat tmponesmat = trimatl(arma::ones(E.n_rows, E.n_cols));
 	arma::uvec tmpindex = find(tmponesmat==0);	
 
-	for(int r = 0 ; r<R ; r++){
+	// arma::vec l_vec; arma::vec iq_vec;
+	// for(int r = 0 ; r<R ; r++){
+	int r = 0;
 		arma::mat Usmall = U; Usmall.shed_col(r);
 		arma::mat Lsmall = L; Lsmall.shed_col(r); Lsmall.shed_row(r);
 		arma::mat Er = E - Usmall * Lsmall * Usmall.t();
@@ -109,13 +113,26 @@ List rUV_sym_fc_cpp(
 		double l = accu(lMat.elem( tmpindex ))/s2;
 		arma::mat uut2 = pow(U.col(r) * U.col(r).t(), 2);
 		double iq = 1/(1+accu(uut2.elem(tmpindex))/s2);
-		L(r,r) = R::rnorm(iq*l, pow(iq,.5) );
-	}
+		// l_vec[r]=l; iq_vec[r]=iq;
+		NumericVector rand = rnorm(iq*l, pow(iq,.5) );
+		L(r,r) = rand[0];
+	// }
 
 	return(
 		Rcpp::List::create(
 			Rcpp::Named("U")=U,
-			Rcpp::Named("V")=U*L
+			Rcpp::Named("V")=U*L,
+			Rcpp::Named("Usmall")=Usmall,
+			Rcpp::Named("Lsmall")=Lsmall,
+			Rcpp::Named("Er")=Er,
+			Rcpp::Named("lMat")=lMat,
+			Rcpp::Named("l")=l,
+			Rcpp::Named("iq")=iq,
+			Rcpp::Named("rand")=rand,
+			Rcpp::Named("L")=L
+			// Rcpp::Named("l_vec")=l_vec,
+			// Rcpp::Named("iq_vec")=iq_vec
+			// ,Rcpp::Named("loopIDs")=loopIDs
 			)		
 		);	
 }
