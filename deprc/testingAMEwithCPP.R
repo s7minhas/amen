@@ -359,60 +359,6 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     # update Z
     E.nrm<-array(dim=dim(Z))
 
-library(inline) ; library(Rcpp); library(RcppArmadillo)
-rcpp_inc = '
-  using namespace Rcpp;
-  using namespace arma;
-'
-
-src = '
-  arma::mat Xbeta = as<arma::mat>(Xbetax);
-  arma::mat ab = as<arma::mat>(abx);
-  arma::mat U = as<arma::mat>(Ux);
-  arma::mat V = as<arma::mat>(Vx);
-
-  arma::mat EZ = Xbeta + ab + U*V.t();
-  return(wrap(EZ));
-'
-
-fx = cxxfunction(
-  signature(Xbetax='numeric', abx='numeric', Ux='numeric', Vx='numeric'),
-  body=src, plugin = 'RcppArmadillo', rcpp_inc)
-
-src = '
-  Rcpp::List Xlist = as<Rcpp::List>(Xlistx);
-  arma::vec beta = as<arma::vec>(betax);
-  arma::mat ab = as<arma::mat>(abx);
-  arma::mat U = as<arma::mat>(Ux);
-  arma::mat V = as<arma::mat>(Vx);
-
-  int N = Xlist.size(); 
-  int n = ab.n_rows;
-  int p = beta.size();
-
-  arma::cube EZ = arma::zeros(n,n,N);
-  for(int t=0 ; t<N ; ++t){
-
-    arma::cube Xt = Xlist[t];
-    arma::mat Xbeta = arma::zeros(n,n);
-    for(int i=0 ; i<p ; ++i){
-      Xbeta = Xbeta + beta(i) * Xt.slice(i);
-    }
-
-    EZ.slice(t) = Xbeta + ab + U*V.t();
-  }
-
-  return(wrap(EZ));
-'
-
-fx = cxxfunction(
-  signature(Xlistx='numeric', betax='numeric', abx='numeric', Ux='numeric', Vx='numeric'),
-  body=src, plugin = 'RcppArmadillo', rcpp_inc)
-
-tst = fx(Xlist, beta, outer(a,b,'+'), U, V)
-
-Z2 = Z
-
 startOld = proc.time()
     for(t in 1:N ){
       EZ<-Xbeta_cpp(array(X[,,,t],dim(X)[1:3]), beta)+ outer(a, b,"+")+ U%*%t(V) # move out of loop
