@@ -16,6 +16,9 @@ rUV_sym_fc_cpp(E, U, V, s2 = 1, shrink=TRUE)
 \item{s2}{dyadic variance}
 
 \item{shrink}{adaptively shrink the factors with a hierarchical prior}
+
+\item{uLoopIDs}{vector of rows to iteratively loop through
+when updating U}
 }
 \value{
 \item{U}{a new value of U} \item{V}{a new value of V}
@@ -30,7 +33,7 @@ diagonal matrix of eigenvalues of \code{U\%*\%t(V)}.
 
 U0<-matrix(rnorm(30,2),30,2) ; V0<-U0\%*\%diag(c(3,-2)) 
 E<- U0\%*\%t(V0) + matrix(rnorm(30^2),30,30) 
-rUV_sym_fc(E,U0,V0) 
+rUV_sym_fc_cpp(E,U0,V0,s2=1,shrink=TRUE,uLoopIDs=rep( sample(1:nrow(E)),4)-1 )
 
 }
 \author{

@@ -29,13 +29,13 @@ within ame_repl fn}
 
 \item{G}{eigenvalue calcs from Sab}
 
-\item{e}{n x k gaussian error matrix}
-
-\item{colE}{column sums of e}
-
 \item{Z.T}{n x n x T array, with the third dimension for replicates.
 Each slice of the array is a (latent) normal relational matrix, with
 multiplicative effects subtracted out}
+
+\item{e}{n x k gaussian error matrix}
+
+\item{colE}{column sums of e}
 }
 \value{
 \item{beta}{regression coefficients} \item{a}{additive row effects}

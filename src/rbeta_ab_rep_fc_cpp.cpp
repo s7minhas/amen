@@ -66,8 +66,7 @@ List rbeta_ab_rep_fc_cpp(
 	arma::cube zCube, arma::cube XrCube, arma::cube XcCube, 
 	arma::cube mXCube, arma::cube mXtCube, 
 	arma::cube xxCube, arma::cube xxTCube,
-	arma::mat iSe2, arma::mat Sabs, int k, arma::mat G, 
-	arma::mat e, arma::vec colE
+	arma::mat iSe2, arma::mat Sabs, int k, arma::mat G
 	) {
 
   double td = iSe2(0,0);
@@ -78,7 +77,7 @@ List rbeta_ab_rep_fc_cpp(
   int p = XrCube.n_cols;
 
   arma::vec lb = arma::zeros(p);
-  arma::mat Qb = arma::zeros(p, p);
+  arma::mat Qb = arma::zeros(p,p);
   arma::vec ZrT = arma::zeros(n);
   arma::vec ZcT = arma::zeros(n);
   arma::mat XrT = arma::zeros(n,p);
@@ -99,7 +98,7 @@ List rbeta_ab_rep_fc_cpp(
       zc[j] = arma::sum(zCube.slice(t).col(j));
     }
 
-    if ( p > 0 ) {
+    if(p > 0){
       lb = lb + mXs.t() * vectorise(Zs);
       Qb = Qb + XXs + ( xxCube.slice(t)/mXs.n_rows )/N;
     }
@@ -115,41 +114,39 @@ List rbeta_ab_rep_fc_cpp(
 
   arma::mat ab = arma::zeros(n,2);
 
-  // if ( k > 0 ){
-  	
-  	arma::mat K = arma::mat("0 1; 1 0");
-  	arma::mat idmatk = eye<mat>(k,k);
+  arma::mat K; arma::mat idmatk; arma::mat A; arma::mat B;
+  arma::mat iA0; arma::mat C0; arma::mat iA; arma::mat C;
+  arma::mat idmatn; arma::mat onesmatn; arma::mat H;
+  arma::mat Hrr; arma::mat Hrc; arma::mat Hcr; arma::mat Hcc;
+  if(k > 0){
+  	K = arma::mat("0 1; 1 0");
+  	idmatk = eye<mat>(k,k);
 
-  	arma::mat A = N*n*G.t()*G + idmatk;
-  	arma::mat B = N*G.t()*K*G;
-  	arma::mat iA0 = inv(A);
-  	arma::mat C0 = -inv(A + n*B)*B*iA0;
+  	A = N*n*G.t()*G + idmatk;
+  	B = N*G.t()*K*G;
+  	iA0 = inv(A);
+  	C0 = -inv(A + n*B)*B*iA0;
 
-  	arma::mat iA = G * iA0 * G.t();
-  	arma::mat C = G * C0 * G.t();
+  	iA = G * iA0 * G.t();
+  	C = G * C0 * G.t();
 
-	arma::mat idmatn = eye<mat>(n,n);
-	arma::mat onesmatn = ones<mat>(n,n);
-	arma::mat H = arma::kron(iA, idmatn) + arma::kron(C,onesmatn);
-	arma::mat Hrr = H.submat(0,0,n-1,n-1);
-	arma::mat Hrc = H.submat(0,n,n-1,2*n-1);
-	arma::mat Hcr = H.submat(n,0,2*n-1,n-1);
-	arma::mat Hcc = H.submat(n,n,2*n-1,2*n-1);
-	Qb = Qb-XrT.t()*Hrr*XrT-XcT.t()*Hcr*XrT-XrT.t()*Hrc*XcT-XcT.t()*Hcc*XcT;
-	lb = lb-XrT.t()*Hrr*ZrT-XcT.t()*Hcr*ZrT-XrT.t()*Hrc*ZcT-XcT.t()*Hcc*ZcT;
-	// }
+  	idmatn = eye<mat>(n,n);
+  	onesmatn = ones<mat>(n,n);
+  	H = arma::kron(iA, idmatn) + arma::kron(C,onesmatn);
+  	Hrr = H.submat(0,0,n-1,n-1);
+  	Hrc = H.submat(0,n,n-1,2*n-1);
+  	Hcr = H.submat(n,0,2*n-1,n-1);
+  	Hcc = H.submat(n,n,2*n-1,2*n-1);
+  	Qb = Qb-XrT.t()*Hrr*XrT-XcT.t()*Hcr*XrT-XrT.t()*Hrc*XcT-XcT.t()*Hcc*XcT;
+  	lb = lb-XrT.t()*Hrr*ZrT-XcT.t()*Hcr*ZrT-XrT.t()*Hrc*ZcT-XcT.t()*Hcc*ZcT;
+	}
 
-  // if ( p > 0 ) {
-
-  	arma::mat Vb = inv(Qb);
-  	arma::mat Mb = Vb * lb;
-  	arma::vec beta = rmvnorm_cpp(Mb,Vb);
-  // }
-
-  // if ( p == 0 ) {
-
-  // 	arma::vec beta = arma::zeros(1);
-  // }
+  arma::mat Vb; arma::mat Mb; arma::vec beta;
+  if(p > 0){
+  	Vb = inv(Qb); Mb = Vb * lb;
+  	beta = rmvnorm_cpp(Mb,Vb);
+  }
+  if(p==0){ beta = arma::zeros(1); }
 
   arma::mat RrT = ZrT - XrT * beta; 
   arma::mat RcT = ZcT - XcT * beta; 
@@ -162,6 +159,8 @@ List rbeta_ab_rep_fc_cpp(
   }
 
   arma::mat hiA0 = mhalf_cpp(iA0);
+  arma::mat e = rnorm( n*k ); e.reshape(n,k);
+  arma::vec colE = sum(e, 0).t();
   arma::mat ehiA0 = (e * hiA0).t();
   arma::mat iA0nCo = mhalf_cpp(iA0+n*C0);
   arma::mat hiA0nCo = (hiA0-iA0nCo)/n;
@@ -179,7 +178,8 @@ List rbeta_ab_rep_fc_cpp(
   	Rcpp::List::create(
   		Rcpp::Named("beta")=beta,
   		Rcpp::Named("a")=a,
-  		Rcpp::Named("b")=b )
+  		Rcpp::Named("b")=b
+      )
   );
 
 }

@@ -42,8 +42,16 @@ double rrho_mh_rep_cpp(
 	int m = EM.n_rows;
 	arma::mat emCor = arma::cor(EM);
 	double sr = 2*( 1 - pow(emCor(0,1), 2) )/pow(m, .5);
-
-	double rho1 = R::pnorm(1, (1-rho)/sr, 1, 0, FALSE );	
-
-	return(rho1);
+	NumericVector x1; x1 = (-1-rho)/sr; NumericVector x2; x2 = (1-rho)/sr;
+	int runiflo = pnorm(x1,0.0,1.0,1,0)[0];
+	int runifhi = pnorm(x2,0.0,1.0,1,0)[0];
+	NumericVector runifdraw = runif(1,runiflo,runifhi);
+	double qnormdraw = qnorm(runifdraw)[0];
+	double rho1 = rho + sr*qnormdraw;
+	double lhr = ( -.5*(m*log(1-pow(rho1,2))+(emss-2*rho1*emcp)/(1-pow(rho1,2))) ) -
+					(-.5*(m*log(1-pow(rho,2) )+(emss-2*rho*emcp )/(1-pow(rho,2) ))) + 
+					( (-.5*log(1-pow(rho1,2))) - (-.5*log(1-pow(rho,2))) );
+	double rhoNew;
+	if( log(runif(1,0,1)[0]) < lhr ){ rhoNew = rho1; } else { rhoNew = rho; }
+	return( rhoNew );
 }

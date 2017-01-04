@@ -4,25 +4,6 @@
 using namespace arma; 
 using namespace Rcpp; 
 
-arma::mat matMultVec(arma::mat x, arma::vec y){
-	int nRows = x.n_rows;
-	int nCols = x.n_cols;
-
-	arma::mat xy = arma::zeros(nRows,nCols);
-	if(nRows <= nCols){
-		for(int r = 0 ; r<nRows ; r++){
-		  xy.row(r) = x.row(r) % y.t();
-		}		
-	}
-	if(nCols < nRows){
-		for(int c = 0 ; c<nCols ; c++){
-		  xy.col(c) = x.col(c) % y;
-		}		
-	}		
-
-	return(xy);
-}
-
 //' Simulation from a Wishart distribution
 //' 
 //' Simulates a random Wishart-distributed matrix

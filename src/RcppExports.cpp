@@ -22,8 +22,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // rbeta_ab_rep_fc_cpp
-List rbeta_ab_rep_fc_cpp(arma::cube zCube, arma::cube XrCube, arma::cube XcCube, arma::cube mXCube, arma::cube mXtCube, arma::cube xxCube, arma::cube xxTCube, arma::mat iSe2, arma::mat Sabs, int k, arma::mat G, arma::mat e, arma::vec colE);
-RcppExport SEXP amen_rbeta_ab_rep_fc_cpp(SEXP zCubeSEXP, SEXP XrCubeSEXP, SEXP XcCubeSEXP, SEXP mXCubeSEXP, SEXP mXtCubeSEXP, SEXP xxCubeSEXP, SEXP xxTCubeSEXP, SEXP iSe2SEXP, SEXP SabsSEXP, SEXP kSEXP, SEXP GSEXP, SEXP eSEXP, SEXP colESEXP) {
+List rbeta_ab_rep_fc_cpp(arma::cube zCube, arma::cube XrCube, arma::cube XcCube, arma::cube mXCube, arma::cube mXtCube, arma::cube xxCube, arma::cube xxTCube, arma::mat iSe2, arma::mat Sabs, int k, arma::mat G);
+RcppExport SEXP amen_rbeta_ab_rep_fc_cpp(SEXP zCubeSEXP, SEXP XrCubeSEXP, SEXP XcCubeSEXP, SEXP mXCubeSEXP, SEXP mXtCubeSEXP, SEXP xxCubeSEXP, SEXP xxTCubeSEXP, SEXP iSe2SEXP, SEXP SabsSEXP, SEXP kSEXP, SEXP GSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -38,9 +38,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat >::type Sabs(SabsSEXP);
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type G(GSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type e(eSEXP);
-    Rcpp::traits::input_parameter< arma::vec >::type colE(colESEXP);
-    rcpp_result_gen = Rcpp::wrap(rbeta_ab_rep_fc_cpp(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, iSe2, Sabs, k, G, e, colE));
+    rcpp_result_gen = Rcpp::wrap(rbeta_ab_rep_fc_cpp(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, iSe2, Sabs, k, G));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -69,9 +67,40 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rwish_cpp
+arma::mat rwish_cpp(arma::mat S0, int nu);
+RcppExport SEXP amen_rwish_cpp(SEXP S0SEXP, SEXP nuSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type S0(S0SEXP);
+    Rcpp::traits::input_parameter< int >::type nu(nuSEXP);
+    rcpp_result_gen = Rcpp::wrap(rwish_cpp(S0, nu));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rUV_rep_fc_cpp
+List rUV_rep_fc_cpp(arma::cube ET, arma::mat U, arma::mat V, double rho, double s2, arma::mat iSe2, double maxmargin, bool shrink, NumericVector rLoopIDs);
+RcppExport SEXP amen_rUV_rep_fc_cpp(SEXP ETSEXP, SEXP USEXP, SEXP VSEXP, SEXP rhoSEXP, SEXP s2SEXP, SEXP iSe2SEXP, SEXP maxmarginSEXP, SEXP shrinkSEXP, SEXP rLoopIDsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type ET(ETSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type U(USEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type V(VSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type iSe2(iSe2SEXP);
+    Rcpp::traits::input_parameter< double >::type maxmargin(maxmarginSEXP);
+    Rcpp::traits::input_parameter< bool >::type shrink(shrinkSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type rLoopIDs(rLoopIDsSEXP);
+    rcpp_result_gen = Rcpp::wrap(rUV_rep_fc_cpp(ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rUV_sym_fc_cpp
-arma::mat rUV_sym_fc_cpp(arma::mat E, arma::mat U, arma::mat V, double s2, bool shrink);
-RcppExport SEXP amen_rUV_sym_fc_cpp(SEXP ESEXP, SEXP USEXP, SEXP VSEXP, SEXP s2SEXP, SEXP shrinkSEXP) {
+List rUV_sym_fc_cpp(arma::mat E, arma::mat U, arma::mat V, double s2, bool shrink, NumericVector uLoopIDs);
+RcppExport SEXP amen_rUV_sym_fc_cpp(SEXP ESEXP, SEXP USEXP, SEXP VSEXP, SEXP s2SEXP, SEXP shrinkSEXP, SEXP uLoopIDsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -80,7 +109,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat >::type V(VSEXP);
     Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
     Rcpp::traits::input_parameter< bool >::type shrink(shrinkSEXP);
-    rcpp_result_gen = Rcpp::wrap(rUV_sym_fc_cpp(E, U, V, s2, shrink));
+    Rcpp::traits::input_parameter< NumericVector >::type uLoopIDs(uLoopIDsSEXP);
+    rcpp_result_gen = Rcpp::wrap(rUV_sym_fc_cpp(E, U, V, s2, shrink, uLoopIDs));
     return rcpp_result_gen;
 END_RCPP
 }

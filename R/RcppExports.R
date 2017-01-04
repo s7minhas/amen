@@ -50,8 +50,8 @@ get_EZ_cpp <- function(Xlist, beta, ab, U, V) {
 #' \item{b}{additive column effects}
 #' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @export rbeta_ab_rep_fc_cpp
-rbeta_ab_rep_fc_cpp <- function(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, iSe2, Sabs, k, G, e, colE) {
-    .Call('amen_rbeta_ab_rep_fc_cpp', PACKAGE = 'amen', zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, iSe2, Sabs, k, G, e, colE)
+rbeta_ab_rep_fc_cpp <- function(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, iSe2, Sabs, k, G) {
+    .Call('amen_rbeta_ab_rep_fc_cpp', PACKAGE = 'amen', zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, iSe2, Sabs, k, G)
 }
 
 #' Metropolis update for dyadic correlation with independent replicate data
@@ -77,16 +77,67 @@ rrho_mh_rep_cpp <- function(ET, rho, s2) {
 #' Gibbs update for dyadic variance with independent replicate relational data
 #' 
 #' 
-#' @usage rs2_rep_fc_cpp(E.T, rho)
+#' @usage rs2_rep_fc_cpp(E.T, rhoMat=solve(matrix(c(1,rho,rho,1),2,2)) )
 #' @param E.T Array of square residual relational matrix series. The third
 #' dimension of the array is for different replicates. Each slice of the array
 #' according to the third dimension is a square residual relational matrix
-#' @param rho s2 matrix
+#' @param rhoMat inverted off-diagnoal matrix of rho
 #' @return a new value of s2
 #' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @export rs2_rep_fc_cpp
 rs2_rep_fc_cpp <- function(ET, rhoMat) {
     .Call('amen_rs2_rep_fc_cpp', PACKAGE = 'amen', ET, rhoMat)
+}
+
+#' Simulation from a Wishart distribution
+#' 
+#' Simulates a random Wishart-distributed matrix
+#' 
+#' 
+#' @usage rwish_cpp(S0, nu = dim(S0)[1] + 1)
+#' @param S0 a positive definite matrix
+#' @param nu a positive integer
+#' @return a positive definite matrix
+#' @author Peter Hoff, Shahryar Minhas
+#' @examples
+#' 
+#' ## The expectation is S0*nu
+#' 
+#' S0<-rwish(diag(3)) 
+#' SS<-matrix(0,3,3) 
+#' for(s in 1:1000) { SS<-SS+rwish(S0,5) }
+#' SS/s 
+#' S0*5
+#' 
+#' @export rwish_cpp
+rwish_cpp <- function(S0, nu) {
+    .Call('amen_rwish_cpp', PACKAGE = 'amen', S0, nu)
+}
+
+#' Gibbs sampling of U and V
+#' 
+#' A Gibbs sampler for updating the multiplicative effect matrices U and V,
+#' assuming they are the same across replicates. 
+#' 
+#' 
+#' @usage rUV_rep_fc_cpp(ET,U,V,rho,s2=1,maxmargin=1e-6,shrink=TRUE,rLoopIDs=sample(1:R)-1)
+#' @param ET Array of square residual relational matrix series with additive
+#' effects and covariates subtracted out. The third dimension of the array is
+#' for different replicates. Each slice of the array according to the third
+#' dimension is a square residual relational matrix. 
+#' @param U current value of U
+#' @param V current value of V
+#' @param rho dyadic correlation
+#' @param s2 dyadic variance
+#' @param iSe2 rho dyadic variance combo
+#' @param maxmargin small float
+#' @param shrink adaptively shrink the factors with a hierarchical prior
+#' @param rLoopIDs shuffled vector of latent space dimension sequence
+#' @return \item{U}{a new value of U} \item{V}{a new value of V}
+#' @author Peter Hoff, Yanjun He, Shahryar Minhas
+#' @export rUV_rep_fc_cpp
+rUV_rep_fc_cpp <- function(ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs) {
+    .Call('amen_rUV_rep_fc_cpp', PACKAGE = 'amen', ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs)
 }
 
 #' Gibbs sampling of U and V
@@ -102,17 +153,19 @@ rs2_rep_fc_cpp <- function(ET, rhoMat) {
 #' @param V current value of V
 #' @param s2 dyadic variance
 #' @param shrink adaptively shrink the factors with a hierarchical prior
+#' @param uLoopIDs vector of rows to iteratively loop through
+#' when updating U
 #' @return \item{U}{a new value of U} \item{V}{a new value of V}
 #' @author Peter Hoff, Shahryar Minhas
 #' @examples
 #' 
 #' U0<-matrix(rnorm(30,2),30,2) ; V0<-U0%*%diag(c(3,-2)) 
 #' E<- U0%*%t(V0) + matrix(rnorm(30^2),30,30) 
-#' rUV_sym_fc(E,U0,V0) 
+#' rUV_sym_fc_cpp(E,U0,V0,s2=1,shrink=TRUE,uLoopIDs=rep( sample(1:nrow(E)),4)-1 )
 #' 
 #' @export rUV_sym_fc_cpp
-rUV_sym_fc_cpp <- function(E, U, V, s2, shrink) {
-    .Call('amen_rUV_sym_fc_cpp', PACKAGE = 'amen', E, U, V, s2, shrink)
+rUV_sym_fc_cpp <- function(E, U, V, s2, shrink, uLoopIDs) {
+    .Call('amen_rUV_sym_fc_cpp', PACKAGE = 'amen', E, U, V, s2, shrink, uLoopIDs)
 }
 
 #' Linear combinations of submatrices of an array
