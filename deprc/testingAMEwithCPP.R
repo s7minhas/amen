@@ -362,11 +362,12 @@ Y=yList ; Xdyad = xDyadList ; Xrow = xNodeList ; seed = 6886
     # update Z
     E.nrm<-array(dim=dim(Z))
 
+Z2=Z
 startOld = proc.time()
     for(t in 1:N ){
-      EZ<-Xbeta_cpp(array(X[,,,t],dim(X)[1:3]), beta)+ outer(a, b,"+")+ U%*%t(V) # move out of loop
+      EZ<-Xbeta(array(X[,,,t],dim(X)[1:3]), beta)+ outer(a, b,"+")+ U%*%t(V) # move out of loop
       if(model=="nrm" ){ 
-        Z[,,t]<-rZ_nrm_fc(Z[,,t],EZ,rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ
+         set.seed(6886) ;  Z[,,t]<-rZ_nrm_fc(Z[,,t],EZ,rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ
       }
       if(model=="bin"){ set.seed(6886) ; Z[,,t]<-rZ_bin_fc(Z[,,t],EZ,rho,Y[,,t]) }
       if(model=="ord"){ Z[,,t]<-rZ_ord_fc(Z[,,t],EZ,rho,Y[,,t]) }
@@ -379,10 +380,11 @@ startOld = proc.time()
 endOld = proc.time()
 
 startNew = proc.time()
+   EZt = get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
     for(t in 1:N ){
-      EZ2<-tst[,,t] # move out of loop
+      EZ2<-EZt[,,t] # move out of loop
       if(model=="nrm" ){ 
-        Z2[,,t]<-rZ_nrm_fc(Z2[,,t],EZ2,rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z2[,,t]-EZ2
+         set.seed(6886) ;  Z2[,,t]<-rZ_nrm_fc(Z2[,,t],EZ2,rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z2[,,t]-EZ2
       }
       if(model=="bin"){ set.seed(6886) ;  Z2[,,t]<-rZ_bin_fc(Z2[,,t],EZ2,rho,Y[,,t]) }
       if(model=="ord"){ Z2[,,t]<-rZ_ord_fc(Z2[,,t],EZ2,rho,Y[,,t]) }
@@ -396,38 +398,52 @@ endNew = proc.time()
 
 dimnames(Z) = NULL
 identical(Z, Z2)
-sum(Z)
-sum(Z2)
-Z[1:3,1:3,1]
-Z2[1:3,1:3,1]
 
 endOld - startOld
-
 endNew - startNew
 
     # update s2
-    if (model=="nrm"){ s2<-rs2_rep_fc(E.nrm,rho) } # somewhat slow
+    if (model=="nrm"){ s2<-rs2_rep_fc_cpp(E.nrm, solve(matrix(c(1,rho,rho,1),2,2)) ) }
+
+set.seed(6886) ; tmp1 = rs2_rep_fc(E.nrm,rho)
+set.seed(6886) ; tmp2 = rs2_rep_fc_cpp(E.nrm, solve(matrix(c(1,rho,rho,1),2,2)) )
+identical(round(tmp1,3), round(tmp2,3))
+
+# library(rbenchmark)
+# set.seed(6886)
+# benchmark(
+#   rs2_rep_fc(E.nrm,rho),
+#   rs2_rep_fc_cpp(E.nrm, solve(matrix(c(1,rho,rho,1),2,2)) ),
+#   replications=100
+#   )
+
       
     # update beta, a b
-    source('~/Research/software/amen/R/rbeta_ab_rep_fc_fast.R')
-    source('~/Research/software/amen/R/rbeta_ab_rep_fc.R')
+    startOld = proc.time()
+    set.seed(6886) ;  tmp1 <- rbeta_ab_rep_fc( sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2 )
+    endOld = proc.time()
+    
+    startNew = proc.time()
+    iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
+    tmp<-eigen(Sabs) ; k<-sum(zapsmall(tmp$val)>0 ) ; G<-tmp$vec[,1:k] %*% sqrt(diag(tmp$val[1:k],nrow=k))
+    set.seed(6886) ; tmp <- rbeta_ab_rep_fc_cpp(
+      zCube=sweep(Z,c(1,2),U%*%t(V)), XrCube=XrLong, XcCube=XcLong, 
+      mXCube=mXLong, mXtCube=mXtLong, xxCube=xxLong, xxTCube=xxTLong,
+      iSe2=iSe2, Sabs=Sabs, k=k, G=G )
+    endNew = proc.time()
 
-Z.T = sweep(Z,c(1,2),U%*%t(V))
-X.T = X
+endOld - startOld
+endNew - startNew
 
-    set.seed(6886) ; system.time(tmp <- rbeta_ab_rep_fc(
-      sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)) # slow here
-    set.seed(6886) ; system.time(tmp2 <- rbeta_ab_rep_fc_fast(
-      sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2,XrLong, XcLong, 
-      mXLong, mXtLong, xxLong, xxTLong)) # slow here
-    set.seed(6886) ; system.time(tmp4 <- rbeta_ab_rep_fc_cpp( 
-      zCube=Z.T, XrCube=XrLong, XcCube=XcLong, mXCube=mXLong, 
-      mXtCube=mXtLong, xxCube=xxLong, xxTCube=xxTLong, iSe2=iSe2, 
-      Sabs=Sabs, k=k, G=G, e=e, colE=colE ))
+identical( round(tmp1$beta,4) , round(c(tmp$beta),4) )
+identical( round(tmp1$a * rvar,4) , round(c(tmp$a) * rvar,4) )
+identical( round(tmp1$b * rvar,4) , round(c(tmp$b) * rvar,4) )
+lapply(tmp1, head)
+lapply(tmp, function(x){head(c(x))})
 
-    beta <- tmp$beta
-    a <- tmp$a * rvar
-    b <- tmp$b * cvar 
+    beta <- c(tmp$beta)
+    a <- c(tmp$a) * rvar
+    b <- c(tmp$b) * cvar 
     if(symmetric){ a<-b<-(a+b)/2 }
  
     # update Sab - full SRM
@@ -453,12 +469,27 @@ X.T = X
 
     # update rho
     if( dcor ){
-      E.T<-array(dim=dim(Z))
-      for (t in 1:N ){
-        E.T[,,t]<-Z[,,t]-(Xbeta_cpp(array(X[,,,t],dim(X)[1:3]),beta) + # move out of loop
-                          outer(a, b, "+") + U %*% t(V))
-      }
-      rho<-rrho_mh_rep(E.T, rho,s2) # somewhat slow
+
+      # dcorOld = function(){
+        # E.T<-array(dim=dim(Z))
+        # for (t in 1:N ){
+        #   E.T[,,t]<-Z[,,t]-(Xbeta(array(X[,,,t],dim(X)[1:3]),beta) + # move out of loop
+        #                     outer(a, b, "+") + U %*% t(V))
+        # }
+        # rho<-rrho_mh_rep(E.T, rho,s2) # somewhat slow
+        # return(list(E.T, rho)) }
+      
+      # dcorNew = function(){
+        E.T = Z - get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )  
+        rho<-rrho_mh_rep_cpp(E.T, rho,s2)
+        # return(list(E.T,rho))
+      # }
+
+# tmp1 = dcorOld()
+# tmp2 = dcorNew()
+# identical(tmp1[[1]], tmp2[[1]])
+      # set.seed(6886) ; rho<-rrho_mh_rep(E.T, rho,s2) # somewhat slow
+      # set.seed(6886) ; rho2<-rrho_mh_rep_cpp(ET2, rho,s2)
     }
      
     # shrink rho - symmetric case 
@@ -466,21 +497,73 @@ X.T = X
 
     # update U,V
     if (R > 0){
-      E<-array(dim=dim(Z))
-      for(t in 1:N){E[,,t]<-Z[,,t]-(Xbeta_cpp(array(X[,,,t],dim(X)[1:3]),beta)+ # move out of loop
-                    outer(a, b, "+"))}
+      # E<-array(dim=dim(Z))
+      # for(t in 1:N){E[,,t]<-Z[,,t]-(Xbeta(array(X[,,,t],dim(X)[1:3]),beta)+ # move out of loop
+      #               outer(a, b, "+"))}
+      
+      E = Z-get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U*0, V*0 )
+
       shrink <- (s>.5*burn)
 
       if(symmetric ){ 
         EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
-        UV<-rUV_sym_fc(EA, U, V, s2/dim(E)[3],shrink)  # slow here
+        # UV<-rUV_sym_fc(EA, U, V, s2/dim(E)[3], shrink)  # slow here
+        UV<-rUV_sym_fc_cpp(EA, U, V, s2/dim(E)[3], shrink, rep(sample(1:nrow(E)),4)-1)  # slow here
+
+        # uvNew = function(){
+        #   E = Z-get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U*0, V*0 )
+        #   EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
+        #   shrink <- (s>.5*burn)
+        #   UV<-rUV_sym_fc_cpp(EA, U, V, s2/dim(E)[3], shrink, rep(sample(1:nrow(E)),4)-1)
+        #   return(list(E, UV))
+        # }
+
+        # uvOld = function(){
+        #   E<-array(dim=dim(Z))
+        #   for(t in 1:N){E[,,t]<-Z[,,t]-(Xbeta(array(X[,,,t],dim(X)[1:3]),beta)+ # move out of loop
+        #                 outer(a, b, "+"))}          
+        #   shrink <- (s>.5*burn)
+        #   EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
+        #   UV<-rUV_sym_fc(EA, U, V, s2/dim(E)[3], shrink)
+        #   return(list(E,UV))
+        
+        # library(rbenchmark)
+        # benchmark( uvOld(), uvNew(), replications = 100 )
+        }
+
       }
-      if(!symmetric){UV<-rUV_rep_fc(E, U, V,rho, s2,shrink) } # somewhat slow
+      if(!symmetric){
+        
+      #   # UV<-rUV_rep_fc(E2, U, V,rho, s2,shrink)
+        
+        UV = rUV_rep_fc_cpp(E2, U, V, rho, s2, 
+          mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)), 
+          maxmargin=1e-6, shrink, sample(1:R)-1 )
+
+      #   # uvNew = function(){
+      #   #   E = Z-get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U*0, V*0 )
+      #   #   shrink <- (s>.5*burn)
+      #   #   UV = rUV_rep_fc_cpp(E2, U, V, rho, s2, 
+      #   #     mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)),
+      #   #     maxmargin=1e-6, shrink, sample(1:R)-1 )
+      #   #   return(list(E, UV))
+      #   # }
+
+      #   # uvOld = function(){
+      #   #   E<-array(dim=dim(Z))
+      #   #   for(t in 1:N){E[,,t]<-Z[,,t]-(Xbeta(array(X[,,,t],dim(X)[1:3]),beta)+ # move out of loop
+      #   #                 outer(a, b, "+"))}          
+      #   #   UV<-rUV_rep_fc(E2, U, V,rho, s2,shrink)
+      #   #   return(list(E,UV))
+      #   # }
+
+      #   # library(rbenchmark)
+      #   # benchmark( uvOld(), uvNew(), replications = 100 )
+
+      }
 
       U<-UV$U ; V<-UV$V
     }
-  })
-   print(fuuuuuck2)
 
     # burn-in countdown
     if(s%%odens==0&s<=burn){cat(round(100*s/burn,2)," pct burnin complete \n")}

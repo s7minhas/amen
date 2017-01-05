@@ -71,3 +71,6 @@ arma::mat rZ_bin_fc_cpp(
 
 	return( Z );
 }
+
+// add in fns for other distributions in the future
+// this fn is too slow to use in ame_rep right now
