@@ -21,6 +21,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rZ_bin_fc_cpp
+arma::mat rZ_bin_fc_cpp(arma::mat Z, arma::mat EZ, double rho, arma::mat Y);
+RcppExport SEXP amen_rZ_bin_fc_cpp(SEXP ZSEXP, SEXP EZSEXP, SEXP rhoSEXP, SEXP YSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type EZ(EZSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type Y(YSEXP);
+    rcpp_result_gen = Rcpp::wrap(rZ_bin_fc_cpp(Z, EZ, rho, Y));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rbeta_ab_rep_fc_cpp
 List rbeta_ab_rep_fc_cpp(arma::cube zCube, arma::cube XrCube, arma::cube XcCube, arma::cube mXCube, arma::cube mXtCube, arma::cube xxCube, arma::cube xxTCube, arma::mat iSe2, arma::mat Sabs, int k, arma::mat G);
 RcppExport SEXP amen_rbeta_ab_rep_fc_cpp(SEXP zCubeSEXP, SEXP XrCubeSEXP, SEXP XcCubeSEXP, SEXP mXCubeSEXP, SEXP mXtCubeSEXP, SEXP xxCubeSEXP, SEXP xxTCubeSEXP, SEXP iSe2SEXP, SEXP SabsSEXP, SEXP kSEXP, SEXP GSEXP) {

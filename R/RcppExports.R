@@ -21,6 +21,24 @@ get_EZ_cpp <- function(Xlist, beta, ab, U, V) {
     .Call('amen_get_EZ_cpp', PACKAGE = 'amen', Xlist, beta, ab, U, V)
 }
 
+#' Simulate Z based on a probit model
+#' 
+#' Simulates a random latent matrix Z given its expectation, dyadic correlation
+#' and a binary relational matrix Y
+#' 
+#' 
+#' @usage rZ_bin_fc_cpp(Z, EZ, rho, Y)
+#' @param Z a square matrix, the current value of Z
+#' @param EZ expected value of Z
+#' @param rho dyadic correlation
+#' @param Y square binary relational matrix
+#' @return a square matrix , the new value of Z
+#' @author Peter Hoff, Shahryar Minhas
+#' @export rZ_bin_fc_cpp
+rZ_bin_fc_cpp <- function(Z, EZ, rho, Y) {
+    .Call('amen_rZ_bin_fc_cpp', PACKAGE = 'amen', Z, EZ, rho, Y)
+}
+
 #' Gibbs sampling of additive row and column effects and regression coefficient
 #' with independent replicate relational data
 #' 

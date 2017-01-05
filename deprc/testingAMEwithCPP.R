@@ -33,7 +33,8 @@
 # #' symmetric=FALSE,
 # #' odmax=NULL, seed = 1,
 # #' nscan = 10000, burn = 500, odens = 25, plot=TRUE, print = TRUE, gof=TRUE)
-# #' @param Y a T length list of n x n relational matrices, where T corresponds to the number of replicates (over time, for example). See
+# #' @param Y a T length list of n x n relational matrices, where T corresponds 
+# #' to the number of replicates (over time, for example). See
 # #' model below for various data types.
 # #' @param Xdyad a T length list of n x n x pd arrays of covariates
 # #' @param Xrow a T length list of n x pr matrices of nodal row covariates
@@ -115,7 +116,9 @@ plot=FALSE ;  print = FALSE ;  gof=TRUE
 # set.seed(6886) ; actors <- as.character( sample(300:700,size=50,replace=FALSE) )
 # Y <- lapply(Y, function(y){ rownames(y) <- actors ; colnames(y) <- actors ; return(y) })
 # varLabs = paste0('dyadVar',1:3)
-# Xdyad <- lapply(Xdyad, function(x){ rownames(x) <- actors ; colnames(x) <- actors ; dimnames(x)[[3]] <- varLabs ; return(x) })
+# Xdyad <- lapply(Xdyad, function(x){ 
+# rownames(x) <- actors ; colnames(x) <- actors ; 
+# dimnames(x)[[3]] <- varLabs ; return(x) })
 
 # YX_bin_list <- list(Y=Y, X=Xdyad)
     
@@ -412,9 +415,15 @@ endNew - startNew
 Z.T = sweep(Z,c(1,2),U%*%t(V))
 X.T = X
 
-    set.seed(6886) ; system.time(tmp <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)) # slow here
-    set.seed(6886) ; system.time(tmp2 <- rbeta_ab_rep_fc_fast(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2,XrLong, XcLong, mXLong, mXtLong, xxLong, xxTLong)) # slow here
-    set.seed(6886) ; system.time(tmp4 <- rbeta_ab_rep_fc_cpp( zCube=Z.T, XrCube=XrLong, XcCube=XcLong, mXCube=mXLong, mXtCube=mXtLong, xxCube=xxLong, xxTCube=xxTLong, iSe2=iSe2, Sabs=Sabs, k=k, G=G, e=e, colE=colE ))
+    set.seed(6886) ; system.time(tmp <- rbeta_ab_rep_fc(
+      sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)) # slow here
+    set.seed(6886) ; system.time(tmp2 <- rbeta_ab_rep_fc_fast(
+      sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2,XrLong, XcLong, 
+      mXLong, mXtLong, xxLong, xxTLong)) # slow here
+    set.seed(6886) ; system.time(tmp4 <- rbeta_ab_rep_fc_cpp( 
+      zCube=Z.T, XrCube=XrLong, XcCube=XcLong, mXCube=mXLong, 
+      mXtCube=mXtLong, xxCube=xxLong, xxTCube=xxTLong, iSe2=iSe2, 
+      Sabs=Sabs, k=k, G=G, e=e, colE=colE ))
 
     beta <- tmp$beta
     a <- tmp$a * rvar
@@ -635,7 +644,8 @@ X.T = X
       YPM=YPM,GOF=GOF)
   } 
 
-# summStats = function(x){ c( mu=mean(x), sd=sd(x), med=median(x), quantile(x, probs=c(0.025,0.975)) ) }
+# summStats = function(x){ c( mu=mean(x), sd=sd(x), 
+  med=median(x), quantile(x, probs=c(0.025,0.975)) ) }
 # round(t(apply(fit$BETA, 2, summStats)),2)
 # library(reshape2) ; library(ggplot2)
 # ugh = melt(fit$BETA)
