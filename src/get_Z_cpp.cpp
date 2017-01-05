@@ -20,48 +20,54 @@ using namespace Rcpp;
 //' @export rZ_bin_fc_cpp
 // [[Rcpp::export]]
 
-Rcpp::List rZ_bin_fc_cpp(
+arma::mat rZ_bin_fc_cpp(
 	arma::mat Z, arma::mat EZ, double rho, arma::mat Y
 	) {
 
 	double sz = pow( ( 1 - pow(rho,2) ), .5);
+
 	arma::uvec ut = find(trimatl(arma::ones(EZ.n_rows, EZ.n_cols))==0);
+	IntegerVector utIndex = as<IntegerVector>(wrap( ut ));	
 	arma::uvec lt = find(trimatu(arma::ones(EZ.n_rows, EZ.n_cols))==0);
+	IntegerVector ltIndex = as<IntegerVector>(wrap( lt ));	
+
 	Y.replace(datum::nan, -1);	
 
-	int y=-1;
-	double lb = -1*datum::inf; double ub = datum::inf;
-	IntegerVector Yyindex = as<IntegerVector>(wrap( find(Y==y) ));
-	IntegerVector utindex = as<IntegerVector>(wrap( ut ));	
-	arma::uvec up = as<arma::uvec>(wrap( intersect(Yyindex, utindex) ));
 	arma::mat Zt = Z.t(); arma::mat EZt = EZ.t();
-	arma::vec ez = EZ.elem(up) + rho * ( Zt.elem(up) - EZt.elem(up) );
 
-	// arma::vec ezUp = EZ.elem( ut ); arma::vec yy = Y.elem( ut );
-	// arma::mat EZt = EZ.t(); arma::vec eztUp = EZt.elem( ut );
-	// arma::vec ezUpY = ezUp.elem(find(yy==y)); arma::vec eztUpY = eztUp.elem(find(yy==y));
-	// arma::mat Zt = Z.t(); arma::vec ztUp = Zt.elem( ut ); arma::vec ztUpY = ztUp.elem(find(yy==y));
-	// arma::vec ez = ezUpY + rho * ( ztUpY - eztUpY );
+	IntegerVector yVals = IntegerVector::create(-1,0,1);
+	NumericVector lbVals = NumericVector::create(-1*datum::inf,-1*datum::inf,0);
+	NumericVector ubVals = NumericVector::create(datum::inf,0,datum::inf);
+	for(int i=0; i<yVals.size(); ++i){
+		int y=yVals[i]; double lb=lbVals[i]; double ub=ubVals[i];
+		IntegerVector Yyindex = as<IntegerVector>(wrap( find(Y==y) ));
+	
+		// upper triangle
+		arma::uvec up_u = as<arma::uvec>(wrap( intersect(Yyindex, utIndex) ));
+		arma::vec ez_u = EZ.elem(up_u) + rho * ( Zt.elem(up_u) - EZt.elem(up_u) );
+	
+		NumericVector x1_u; x1_u = (lb-ez_u)/sz; NumericVector x2_u; x2_u = (ub-ez_u)/sz;
+		NumericVector rUnifLo_u = pnorm(x1_u,0.0,1.0); NumericVector rUnifHi_u = pnorm(x2_u,0.0,1.0);
+		NumericVector rUnifDraw_u(up_u.n_elem);
+		for(int ii=0;ii<up_u.n_elem;++ii){ rUnifDraw_u[ii]=runif(1,rUnifLo_u[ii],rUnifHi_u[ii])[0]; }
+		NumericVector qnormDraw_u = qnorm(rUnifDraw_u,0.0,1.0); arma::vec szQnorm_u = sz * qnormDraw_u;
+		Z.elem(up_u) = ez_u + szQnorm_u;
+	
+		// lower triangle
+		arma::uvec up_l = as<arma::uvec>(wrap( intersect(Yyindex, ltIndex) ));
+		arma::vec ez_l = EZ.elem(up_l) + rho * ( Zt.elem(up_l) - EZt.elem(up_l) );
+	
+		NumericVector x1_l; x1_l = (lb-ez_l)/sz; NumericVector x2_l; x2_l = (ub-ez_l)/sz;
+		NumericVector rUnifLo_l = pnorm(x1_l,0.0,1.0); NumericVector rUnifHi_l = pnorm(x2_l,0.0,1.0);
+		NumericVector rUnifDraw_l(up_l.n_elem);
+		for(int ii=0;ii<up_l.n_elem;++ii){ rUnifDraw_l[ii]=runif(1,rUnifLo_l[ii],rUnifHi_l[ii])[0]; }
+		NumericVector qnormDraw_l = qnorm(rUnifDraw_l,0.0,1.0); arma::vec szQnorm_l = sz * qnormDraw_l;
+		Z.elem(up_l) = ez_l + szQnorm_l;
+	}
 
-	NumericVector x1; x1 = (lb-ez)/sz; NumericVector x2; x2 = (ub-ez)/sz;
-	NumericVector rUnifLo = pnorm(x1,0.0,1.0); NumericVector rUnifHi = pnorm(x2,0.0,1.0);
-	NumericVector rUnifDraw(up.n_elem);
-	for(int ii=0;ii<up.n_elem;++ii){ rUnifDraw[ii]=runif(1,rUnifLo[ii],rUnifHi[ii])[0]; }
-	NumericVector qnormDraw = qnorm(rUnifDraw,0.0,1.0); arma::vec szQnorm = sz * qnormDraw;
-	Z.elem(up) = ez + szQnorm;
+	arma::vec ezDiag = diagvec(EZ);
+	arma::vec zDiag(Z.n_rows); for(int i=0; i<Z.n_rows; ++i){ zDiag[i]=rnorm(1,ezDiag[i],1)[0]; }
+	Z.diag() = zDiag;
 
-	return(
-		Rcpp::List::create(
-			Rcpp::Named("sz") = sz,
-			Rcpp::Named("ez") = ez,
-			Rcpp::Named("rUnifLo") = rUnifLo,
-			Rcpp::Named("rUnifHi") = rUnifHi,
-			Rcpp::Named("rUnifDraw") = rUnifDraw,
-			Rcpp::Named("qnormDraw") = qnormDraw,
-			// Rcpp::Named("newZ") = newZ,
-			// Rcpp::Named("test") = test,
-			// Rcpp::Named("ut") = ut,
-			Rcpp::Named("Z") = Z
-			)
-		);
+	return( Z );
 }
