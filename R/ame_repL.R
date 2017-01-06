@@ -33,8 +33,9 @@
 #' symmetric=FALSE,
 #' odmax=NULL, seed = 1,
 #' nscan = 10000, burn = 500, odens = 25, plot=TRUE, print = TRUE, gof=TRUE)
-#' @param Y a T length list of n x n relational matrices, where T corresponds to the number of replicates (over time, for example). See
-#' model below for various data types.
+#' @param Y a T length list of n x n relational matrices, where T 
+#' corresponds to the number of replicates (over time, for example). 
+#' See model below for various data types.
 #' @param Xdyad a T length list of n x n x pd arrays of covariates
 #' @param Xrow a T length list of n x pr matrices of nodal row covariates
 #' @param Xcol a T length list of n x pc matrices of nodal column covariates
@@ -57,6 +58,8 @@
 #' @param plot logical: plot results while running?
 #' @param print logical: print results while running?
 #' @param gof logical: calculate goodness of fit statistics?
+#' @param startVals List from previous model run containing parameter
+#' starting values for new MCMC
 #' @return \item{BETA}{posterior samples of regression coefficients}
 #' \item{VC}{posterior samples of the variance parameters}
 #' \item{APM}{posterior mean of additive row effects a} \item{BPM}{posterior
@@ -70,6 +73,8 @@
 #' matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
 #' \item{GOF}{observed (first row) and posterior predictive (remaining rows)
 #' values of four goodness-of-fit statistics}
+#' \item{startVals}{Final parameter values from MCMC, can be used as the input
+#' for a future model run.}
 #' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @examples
 #' 
@@ -87,7 +92,7 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
            symmetric=FALSE, 
            odmax=NULL,
            seed = 1, nscan = 10000, burn = 500, odens = 25,
-           plot=TRUE, print = TRUE, gof=TRUE)
+           plot=TRUE, print = TRUE, gof=TRUE, startVals=NULL)
 { 
 
   # set random seed 
@@ -226,62 +231,71 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     }
   }
     
-  # starting Z values
-  Z<-array(dim=dim(Y))
-  for (t in 1:N ){
-    if(model=="nrm"){Z[,,t]<-Y[,,t] }
-    if(model=="ord"){Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),ncol(Y[,,t]))} 
-    if(model=="rrl" ){  
-      Z[,,t]<-matrix(t(apply(Y[,,t],1,zscores)),nrow(Y[,,t]),ncol(Y[,,t])) 
-    }  
-    if(model=="bin" ){ 
-      Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t])) 
-      # zyMax <- max(Z[,,t][Y[,,t]==0],na.rm=TRUE)
-      zyMax <- ifelse( sum(Y[,,t]==0, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==0],na.rm=TRUE), 0)
-      # zyMin <- min(Z[,,t][Y[,,t]==1],na.rm=TRUE)
-      zyMin <- ifelse( sum(Y[,,t]==1, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==1],na.rm=TRUE), 0)
-      z01<-.5*(zyMax+zyMin ) 
-      Z[,,t]<-Z[,,t] - z01
-    } 
-      
-    if(is.element(model,c("cbin","frn")) ){
-      Z[,,t]<-Y[,,t]
-      for(i in 1:nrow(Y[,,t]) ){
-        yi<-Y[i,,t]
-        zi<-zscores(yi)
-        rnkd<-which( !is.na(yi) & yi>0 ) 
-        if(length(rnkd)>0 && min(zi[rnkd])<0 ){ 
-          zi[rnkd]<-zi[rnkd] - min(zi[rnkd]) + 1e-3 
-        }
-          
-        if(length(rnkd)<odmax[i] ){
-          urnkd<-which( !is.na(yi) & yi==0 ) 
-          if(max(zi[urnkd])>0) { zi[urnkd]<-zi[urnkd] - max(zi[urnkd]) -1e-3 }
-        }
-          
-        Z[i,,t]<-zi
+  if(is.null(startVals)){
+    # starting Z values
+    Z<-array(dim=dim(Y))
+    for (t in 1:N ){
+      if(model=="nrm"){Z[,,t]<-Y[,,t] }
+      if(model=="ord"){Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),ncol(Y[,,t]))} 
+      if(model=="rrl" ){  
+        Z[,,t]<-matrix(t(apply(Y[,,t],1,zscores)),nrow(Y[,,t]),ncol(Y[,,t])) 
+      }  
+      if(model=="bin" ){ 
+        Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t])) 
+        # zyMax <- max(Z[,,t][Y[,,t]==0],na.rm=TRUE)
+        zyMax <- ifelse( sum(Y[,,t]==0, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==0],na.rm=TRUE), 0)
+        # zyMin <- min(Z[,,t][Y[,,t]==1],na.rm=TRUE)
+        zyMin <- ifelse( sum(Y[,,t]==1, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==1],na.rm=TRUE), 0)
+        z01<-.5*(zyMax+zyMin ) 
+        Z[,,t]<-Z[,,t] - z01
       } 
+        
+      if(is.element(model,c("cbin","frn")) ){
+        Z[,,t]<-Y[,,t]
+        for(i in 1:nrow(Y[,,t]) ){
+          yi<-Y[i,,t]
+          zi<-zscores(yi)
+          rnkd<-which( !is.na(yi) & yi>0 ) 
+          if(length(rnkd)>0 && min(zi[rnkd])<0 ){ 
+            zi[rnkd]<-zi[rnkd] - min(zi[rnkd]) + 1e-3 
+          }
+            
+          if(length(rnkd)<odmax[i] ){
+            urnkd<-which( !is.na(yi) & yi==0 ) 
+            if(max(zi[urnkd])>0) { zi[urnkd]<-zi[urnkd] - max(zi[urnkd]) -1e-3 }
+          }
+            
+          Z[i,,t]<-zi
+        } 
+      }
     }
+
+    # starting values for missing entries  
+    ZA<-Z
+    for (t in 1:N){ 
+      mu<-mean(Z[,,t],na.rm=TRUE) 
+      a<-rowMeans(Z[,,t],na.rm=TRUE) ; b<-colMeans(Z[,,t],na.rm=TRUE)
+      # a[is.na(a)] <- mean(a, na.rm=TRUE) ; b[is.na(b)] <- mean(b, na.rm=TRUE)
+      a[is.na(a)] <- 0 ; b[is.na(b)] <- 0
+      ZA[,,t]<-mu + outer(a,b,"+")
+    }
+    Z[is.na(Z)]<-ZA[is.na(Z)]
+      
+    # other starting values
+    beta<-rep(0,dim(X)[3]) 
+    s2<-1 
+    rho<-0
+    Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
+    U<-V<-matrix(0, nrow(Y[,,1]), R) 
+  } # close of startVals condition    
+  
+  # unpack startVals list if applicable
+  if(!is.null(startVals)){
+    Z<-startVals$Z ; beta<-startVals$beta ; a<-startVals$a ; b<-startVals$b
+    U<-startVals$U ; V<-startVals$V ; rho<-startVals$rho ; s2<-startVals$s2
+    Sab<-startVals$Sab
   }
 
-  # starting values for missing entries  
-  ZA<-Z
-  for (t in 1:N){ 
-    mu<-mean(Z[,,t],na.rm=TRUE) 
-    a<-rowMeans(Z[,,t],na.rm=TRUE) ; b<-colMeans(Z[,,t],na.rm=TRUE)
-    # a[is.na(a)] <- mean(a, na.rm=TRUE) ; b[is.na(b)] <- mean(b, na.rm=TRUE)
-    a[is.na(a)] <- 0 ; b[is.na(b)] <- 0
-    ZA[,,t]<-mu + outer(a,b,"+")
-  }
-  Z[is.na(Z)]<-ZA[is.na(Z)]
-    
-  # other starting values
-  beta<-rep(0,dim(X)[3]) 
-  s2<-1 
-  rho<-0
-  Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
-  U<-V<-matrix(0, nrow(Y[,,1]), R) 
-    
   #  output items
   BETA <- matrix(nrow = nscan/odens, ncol = dim(X)[3] - pr*symmetric)
   VC<-matrix(nrow=nscan/odens,ncol=5-3*symmetric)   
@@ -308,7 +322,7 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     bnn<-gsub("row",bnames[rb],replacement="node") 
     bnd<-bnames[-c(1*intercept,rb,cb)]
     colnames(BETA)<-c(bni,bnn,bnd) 
-  }    
+  }
 
   # MCMC
   have_coda<-suppressWarnings(try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
@@ -337,7 +351,8 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       
     # update beta, a b
     iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
-    tmpz<-eigen(Sabs) ; k<-sum(zapsmall(tmpz$val)>0 ) ; G<-tmpz$vec[,1:k] %*% sqrt(diag(tmpz$val[1:k],nrow=k))
+    tmpz<-eigen(Sabs) ; k<-sum(zapsmall(tmpz$val)>0 )
+    G<-tmpz$vec[,1:k] %*% sqrt(diag(tmpz$val[1:k],nrow=k))
     tmp <- rbeta_ab_rep_fc_cpp( 
       zCube=sweep(Z,c(1,2),U%*%t(V)), XrCube=XrLong, XcCube=XcLong, 
       mXCube=mXLong, mXtCube=mXtLong, xxCube=xxLong, xxTCube=xxTLong,
@@ -500,6 +515,9 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   dimnames(YPM)<-dimnames(EZ)<-dimnames(Y) 
   rownames(BETA)<-NULL  
 
+  # save startVals for future model runs
+  startVals <- list( Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
+
   # asymmetric output
   if(!symmetric){
     UDV<-svd(UVPM)
@@ -522,7 +540,7 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
 
     # create fitted object
     fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
-                YPM=YPM,GOF=GOF) 
+                YPM=YPM,GOF=GOF, startVals=startVals) 
   }
  
   # symmetric output
@@ -553,7 +571,7 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
 
     # create fitted object
     fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
-      YPM=YPM,GOF=GOF)
+      YPM=YPM,GOF=GOF, startVals=startVals)
   } 
 
   class(fit) <- "ame"
