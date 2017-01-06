@@ -317,8 +317,9 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
 
     # update Z
     E.nrm<-array(dim=dim(Z))
+    EZt <- get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
     for(t in 1:N ){
-      EZ<-Xbeta_cpp(array(X[,,,t],dim(X)[1:3]), beta)+ outer(a, b,"+")+ U%*%t(V) # move out of loop
+      EZ<-EZt[,,t]
       if(model=="nrm" ){ 
         Z[,,t]<-rZ_nrm_fc(Z[,,t],EZ,rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ
       }
@@ -332,10 +333,15 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     }
 
     # update s2
-    if (model=="nrm"){ s2<-rs2_rep_fc(E.nrm,rho) } # somewhat slow
+    if (model=="nrm"){ s2<-rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2))) }
       
     # update beta, a b
-    tmp <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)
+    iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
+    tmpz<-eigen(Sabs) ; k<-sum(zapsmall(tmpz$val)>0 ) ; G<-tmpz$vec[,1:k] %*% sqrt(diag(tmpz$val[1:k],nrow=k))
+    tmp <- rbeta_ab_rep_fc_cpp( 
+      zCube=sweep(Z,c(1,2),U%*%t(V)), XrCube=XrLong, XcCube=XcLong, 
+      mXCube=mXLong, mXtCube=mXtLong, xxCube=xxLong, xxTCube=xxTLong,
+      iSe2=iSe2, Sabs=Sabs, k=k, G=G )
     beta <- tmp$beta
     a <- tmp$a * rvar
     b <- tmp$b * cvar 
@@ -364,12 +370,8 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
 
     # update rho
     if( dcor ){
-      E.T<-array(dim=dim(Z))
-      for (t in 1:N ){
-        E.T[,,t]<-Z[,,t]-(Xbeta_cpp(array(X[,,,t],dim(X)[1:3]),beta) + # move out of loop
-                          outer(a, b, "+") + U %*% t(V))
-      }
-      rho<-rrho_mh_rep(E.T, rho,s2) # somewhat slow
+      E.T <- Z - get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
+      rho<-rrho_mh_rep_cpp(E.T, rho,s2)
     }
      
     # shrink rho - symmetric case 
@@ -377,16 +379,18 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
 
     # update U,V
     if (R > 0){
-      E<-array(dim=dim(Z))
-      for(t in 1:N){E[,,t]<-Z[,,t]-(Xbeta_cpp(array(X[,,,t],dim(X)[1:3]),beta)+ # move out of loop
-                    outer(a, b, "+"))}
+      E <- Z-get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U*0, V*0 )
       shrink <- (s>.5*burn)
 
       if(symmetric ){ 
         EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
-        UV<-rUV_sym_fc(EA, U, V, s2/dim(E)[3],shrink)  # slow here
+        UV<-rUV_sym_fc_cpp(EA, U, V, s2/dim(E)[3], shrink, rep(sample(1:nrow(E)),4)-1)
       }
-      if(!symmetric){UV<-rUV_rep_fc(E, U, V,rho, s2,shrink) } # somewhat slow
+      if(!symmetric){
+        UV <- rUV_rep_fc_cpp(E2, U, V, rho, s2, 
+          mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)),
+          maxmargin=1e-6, shrink, sample(1:R)-1 )
+      }
 
       U<-UV$U ; V<-UV$V
     }
@@ -418,17 +422,17 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       BPS <- BPS + b 
         
       # simulate from posterior predictive 
-      EZ<-Ys<-array(dim=dim(Z))
+      Ys<-array(dim=dim(Z))
+      EZ <- get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
       for(t in 1:N ){
-        EZ[,,t]<-Xbeta_cpp(array(X[,,,t],dim(X)[1:3]),beta) + 
-                  outer(a, b, "+") + U %*% t(V)
-        if(symmetric){ EZ[,,t]<-(EZ[,,t]+t(EZ[,,t]))/2 }
-        if(model=="bin"){ Ys[,,t]<-simY_bin(EZ[,,t],rho) }
-        if(model=="cbin"){ Ys[,,t]<-1*(simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t])>0)}
-        if(model=="frn"){ Ys[,,t]<-simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t]) }
-        if(model=="rrl"){ Ys[,,t]<-simY_rrl(EZ[,,t],rho,odobs,YO=Y[,,t] ) }
-        if(model=="nrm"){ Ys[,,t]<-simY_nrm(EZ[,,t],rho,s2) }
-        if(model=="ord"){ Ys[,,t]<-simY_ord(EZ[,,t],rho,Y[,,t]) }
+        EZt<-EZ[,,t]
+        if(symmetric){ EZt<-(EZt+t(EZt))/2 }
+        if(model=="bin"){ Ys[,,t]<-simY_bin(EZt,rho) }
+        if(model=="cbin"){ Ys[,,t]<-1*(simY_frn(EZt,rho,odmax,YO=Y[,,t])>0)}
+        if(model=="frn"){ Ys[,,t]<-simY_frn(EZt,rho,odmax,YO=Y[,,t]) }
+        if(model=="rrl"){ Ys[,,t]<-simY_rrl(EZt,rho,odobs,YO=Y[,,t] ) }
+        if(model=="nrm"){ Ys[,,t]<-simY_nrm(EZt,rho,s2) }
+        if(model=="ord"){ Ys[,,t]<-simY_ord(EZt,rho,Y[,,t]) }
     
         if(symmetric ){  
           Yst<-Ys[,,t] ; Yst[lower.tri(Yst)]<-0 ; Ys[,,t]<-Yst+t(Yst)
