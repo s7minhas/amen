@@ -283,14 +283,14 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   U<-V<-matrix(0, nrow(Y[,,1]), R) 
     
   #  output items
-  BETA <- matrix(nrow = 0, ncol = dim(X)[3] - pr*symmetric)
-  VC<-matrix(nrow=0,ncol=5-3*symmetric) 
+  BETA <- matrix(nrow = nscan/odens, ncol = dim(X)[3] - pr*symmetric)
+  VC<-matrix(nrow=nscan/odens,ncol=5-3*symmetric)   
   UVPS <- U %*% t(V) * 0 
   APS<-BPS<- rep(0,nrow(Y[,,1]))  
   YPS<-array(0,dim=dim(Y)) ; dimnames(YPS)<-dimnames(Y)
-  GOF<-matrix(rowMeans(apply(Y,3,gofstats)),1,4)  
-  rownames(GOF)<-"obs"
-  colnames(GOF)<- c("sd.rowmean","sd.colmean","dyad.dep","triad.dep")
+  GOF <- matrix(NA, nrow=(nscan/odens)+1, ncol=4,
+    dimnames=list(c('obs',1:(nscan/odens)),c("sd.rowmean","sd.colmean","dyad.dep","triad.dep")))
+  GOF[1,] <- rowMeans(apply(Y,3,gofstats))
   names(APS)<-names(BPS)<-rownames(U)<-rownames(V)<-rownames(Y[,,1])
    
   # names of parameters, asymmetric case  
@@ -405,15 +405,14 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       if(symmetric ){
         br<-beta[rb] ; bc<-beta[cb] ; bn<-(br+bc)/2
         sbeta<-c(beta[1*intercept],bn,beta[-c(1*intercept,rb,cb)] )
-        BETA<-rbind(BETA,sbeta)  
- 
-        VC<-rbind(VC,c(Sab[1,1],s2) ) 
+        BETA[(s-burn)/odens,]<-beta
+        VC[(s-burn)/odens,]<-c(Sab[1,1],s2)
       }
     
       # save BETA and VC - asymmetric case 
       if(!symmetric ){
-        BETA<-rbind(BETA, beta)
-        VC<-rbind(VC, c(Sab[upper.tri(Sab, diag = T)], rho,s2)) 
+        BETA[(s-burn)/odens,]<-beta
+        VC[(s-burn)/odens,]<- c(Sab[upper.tri(Sab, diag = T)], rho,s2)        
       }
 
       # update posterior sums of random effects
@@ -443,7 +442,7 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       YPS<-YPS+Ys
 
       # save posterior predictive GOF stats
-      if(gof){Ys[is.na(Y)]<-NA ;GOF<-rbind(GOF,rowMeans(apply(Ys,3,gofstats)))}
+      if(gof){ Ys[is.na(Y)]<-NA ; GOF[((s-burn)/odens)+1,]<-rowMeans(apply(Ys,3,gofstats)) }
        
       # print MC progress 
       if(print){
