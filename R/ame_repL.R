@@ -349,18 +349,24 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     # update s2
     if (model=="nrm"){ s2<-rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2))) }
       
+    # # update beta, a b
+    # iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
+    # tmpz<-eigen(Sabs) ; k<-sum(zapsmall(tmpz$val)>0 )
+    # G<-tmpz$vec[,1:k] %*% sqrt(diag(tmpz$val[1:k],nrow=k))
+    # tmp <- rbeta_ab_rep_fc_cpp( 
+    #   zCube=sweep(Z,c(1,2),U%*%t(V)), XrCube=XrLong, XcCube=XcLong, 
+    #   mXCube=mXLong, mXtCube=mXtLong, xxCube=xxLong, xxTCube=xxTLong,
+    #   iSe2=iSe2, Sabs=Sabs, k=k, G=G )
+    # beta <- c(tmp$beta)
+    # a <- c(tmp$a) * rvar
+    # b <- c(tmp$b) * cvar 
+    # if(symmetric){ a<-b<-(a+b)/2 }
     # update beta, a b
-    iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
-    tmpz<-eigen(Sabs) ; k<-sum(zapsmall(tmpz$val)>0 )
-    G<-tmpz$vec[,1:k] %*% sqrt(diag(tmpz$val[1:k],nrow=k))
-    tmp <- rbeta_ab_rep_fc_cpp( 
-      zCube=sweep(Z,c(1,2),U%*%t(V)), XrCube=XrLong, XcCube=XcLong, 
-      mXCube=mXLong, mXtCube=mXtLong, xxCube=xxLong, xxTCube=xxTLong,
-      iSe2=iSe2, Sabs=Sabs, k=k, G=G )
+    tmp <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)
     beta <- tmp$beta
     a <- tmp$a * rvar
     b <- tmp$b * cvar 
-    if(symmetric){ a<-b<-(a+b)/2 }
+    if(symmetric){ a<-b<-(a+b)/2 }        
  
     # update Sab - full SRM
     if(rvar & cvar & !symmetric ){
@@ -396,17 +402,15 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     if (R > 0){
       E <- Z-get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U*0, V*0 )
       shrink <- (s>.5*burn)
-
       if(symmetric ){ 
         EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
         UV<-rUV_sym_fc_cpp(EA, U, V, s2/dim(E)[3], shrink, rep(sample(1:nrow(E)),4)-1)
       }
       if(!symmetric){
-        UV <- rUV_rep_fc_cpp(E2, U, V, rho, s2, 
+        UV <- rUV_rep_fc_cpp(E, U, V, rho, s2, 
           mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)),
           maxmargin=1e-6, shrink, sample(1:R)-1 )
       }
-
       U<-UV$U ; V<-UV$V
     }
 

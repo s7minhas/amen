@@ -50,7 +50,7 @@ double rs2_rep_fc_cpp(
 	}
 
 	double shape = (EM.n_elem + 1)/2;
-	double scale = accu( pow(EM, 2) )/2;
+	double scale = (accu(pow(EM, 2))+1)/2;
 	double s2 = 1/rgamma(1, shape, 1/scale)[0];
 	return( s2 );
 }

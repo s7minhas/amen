@@ -6,7 +6,7 @@
 #' across replicates. 
 #' 
 #' 
-#' @usage rbeta_ab_rep_fc(Z.T,Sab,rho,X.T,s2=1)
+#' @usage rbeta_ab_rep_fcL(Z.T,Sab,rho,X.T,s2=1)
 #' @param Z.T n x n x T array, with the third dimension for replicates.
 #' Each slice of the array is a (latent) normal relational matrix, with
 #' multiplicative effects subtracted out
@@ -17,8 +17,8 @@
 #' @return \item{beta}{regression coefficients} \item{a}{additive row effects}
 #' \item{b}{additive column effects}
 #' @author Peter Hoff, Yanjun He, Shahryar Minhas
-#' @export rbeta_ab_rep_fc_fast
-rbeta_ab_rep_fc_fast <-
+#' @export rbeta_ab_rep_fcL
+rbeta_ab_rep_fcL <-
   function(Z.T,Sab,rho,X.T,s2=1, XrLong, XcLong, mXLong, mXtLong, xxLong, xxTLong) 
   {
     ###
@@ -121,4 +121,3 @@ rbeta_ab_rep_fc_fast <-
     
     list(beta=beta,a=ab.vec[1,],b=ab.vec[2,] )  
   }
-
