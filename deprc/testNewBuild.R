@@ -26,57 +26,28 @@ library(rbenchmark)
 # ############################################################
 # ############################################################
 
-# ############################################################
-# ############################################################
-# ## Do no harm: Make sure that results from modified functions are the same as original
-
-# ##############################
-# # test to make sure they return the same results
-# runTests <- function(orig, modded){
-# 	if(round(sum(orig$BETA-modded$BETA),10)!=0){ stop("BETA results don't match.") }
-# 	if(round(sum(orig$VC-modded$VC),10)!=0){ stop("VC results don't match.") }
-# 	if(round(sum(orig$APM-modded$APM),10)!=0){ stop("APM results don't match.") }
-# 	if(round(sum(orig$BPM-modded$BPM),10)!=0){ stop("BPM results don't match.") }
-# 	if(round(sum(orig$U-modded$U),10)!=0){ stop("U results don't match.") }
-# 	if(round(sum(orig$V-modded$V),10)!=0){ stop("V results don't match.") }
-# 	if(round(sum(orig$UVPM-modded$UVPM),10)!=0){ stop("UVPM results don't match.") }
-# 	if(round(sum(orig$GOF-modded$GOF),10)!=0){ stop("GOF results don't match.") }
-# 	N=dim(YX_bin_long$Y)[3]
-# 	for(t in 1:N){ if(round(sum(orig$EZ[,,t]-modded$EZ[[t]]),10)!=0){ stop("EZ results don't match.") } }
-# 	for(t in 1:N){ if(round(sum(orig$YPM[,,t]-modded$YPM[[t]],na.rm=TRUE),10)!=0){ stop("YPM results don't match.") } }
-# }
-# ##############################
-
 ##############################
 # load data
 data(YX_bin_long) ; data(YX_bin_list) # same as other but replicates are stored in list
 
-set.seed(6886) ; fitOrig<-ame_rep(
-  YX_bin_long$Y,YX_bin_long$X,R=2,
-	model='nrm', seed=6886,symmetric=TRUE,
-	burn=2000,nscan=10000,odens=1,plot=FALSE, print=FALSE)
+# set.seed(6886) ; fitOrig<-ame_rep(
+#   YX_bin_long$Y,YX_bin_long$X,R=2,
+# 	model='bin', seed=6886,symmetric=TRUE,intercept=FALSE,
+# 	burn=200,nscan=2000,odens=1,plot=FALSE, print=FALSE) 
 
 set.seed(6886) ; fitOrigTest<-ame_repTest(
   YX_bin_long$Y,YX_bin_long$X,R=2,
-	model='nrm', seed=6886,symmetric=TRUE,
-	burn=2000,nscan=10000,odens=1,plot=FALSE, print=FALSE)
+	model='bin', seed=6886,symmetric=TRUE,intercept=TRUE,
+	burn=0,nscan=839,odens=1,plot=FALSE, print=FALSE)
 
 set.seed(6886) ; fitOrig2<-ame_rep(
   YX_bin_long$Y,YX_bin_long$X,R=2,
-	model='nrm', seed=6886,symmetric=TRUE,
-	burn=2000,nscan=10000,odens=1,plot=FALSE, print=FALSE)
+	model='bin', seed=6886,symmetric=FALSE,intercept=FALSE,
+	burn=200,nscan=2000,odens=1,plot=FALSE, print=FALSE)
 # set.seed(6886) ; fitOrigL<-ame_repL(
 #   YX_bin_list$Y,YX_bin_list$X,R=2,
 #   model='nrm', seed=6886,symmetric=FALSE,
 #   burn=200,nscan=300,odens=1,plot=FALSE, print=FALSE)
-
-# digs=3
-# identical(round(fitOrig$BETA,digs),round(fitOrigTest$BETA,digs),round(fitOrig2$BETA,digs))
-# identical(round(fitOrig$APM,digs), round(fitOrigTest$APM,digs), round(fitOrig2$APM,digs))
-# identical(round(fitOrig$BPM,digs), round(fitOrigTest$BPM,digs), round(fitOrig2$BPM,digs))
-# identical(round(fitOrig$VC,digs), round(fitOrigTest$VC,digs), round(fitOrig2$VC,digs))
-# identical(round(fitOrig$U,digs), round(fitOrigTest$U,digs), round(fitOrig2$U,digs))
-# identical(round(fitOrig$V,digs), round(fitOrigTest$V,digs), round(fitOrig2$V,digs))
 
 apply(fitOrig$BETA, 2, mean)
 apply(fitOrigTest$BETA, 2, mean)
@@ -102,42 +73,36 @@ apply(fitOrig$V, 2, mean)
 apply(fitOrigTest$V, 2, mean)
 apply(fitOrig2$V, 2, mean)
 
+
+## test to see if can refti
+set.seed(6886) ; fitOrigTest_2<-ame_repTest(
+  YX_bin_long$Y,YX_bin_long$X,R=2,
+  model='nrm', seed=6886,symmetric=FALSE,
+  burn=0,nscan=5,odens=1,plot=FALSE, print=FALSE,
+  startVals=fitOrigTest$startVals)
+
 benchmark(
 	ame_rep(
 	  YX_bin_long$Y,YX_bin_long$X,R=2,
 	  model='nrm', seed=6886,symmetric=FALSE,
-	  burn=200,nscan=300,odens=1,plot=FALSE, print=FALSE
+	  burn=5000,nscan=5000,odens=1,plot=FALSE, print=FALSE
 		),
-	ame_rep_tmp(
+	ame_repTest(
 	  YX_bin_long$Y,YX_bin_long$X,R=2,
 	  model='nrm', seed=6886,symmetric=FALSE,
-	  burn=200,nscan=300,odens=1,plot=FALSE, print=FALSE
+	  burn=5000,nscan=5000,odens=1,plot=FALSE, print=FALSE
 	  ),
-	ame_repL(
-	  YX_bin_list$Y,YX_bin_list$X,R=2,
-	  model='nrm', seed=6886,symmetric=FALSE,
-	  burn=200,nscan=300,odens=1,plot=FALSE, print=FALSE
-	  ),
-	replications=5
+	replications=3
 	)
 
-# test
-# 2 ame_rep_tmp(YX_bin_long$Y, YX_bin_long$X, R = 2, model = "nrm", seed = 6886, symmetric = FALSE, burn = 200, nscan = 300, odens = 1, plot = FALSE, print = FALSE)
-# 1     ame_rep(YX_bin_long$Y, YX_bin_long$X, R = 2, model = "nrm", seed = 6886, symmetric = FALSE, burn = 200, nscan = 300, odens = 1, plot = FALSE, print = FALSE)
-# 3    ame_repL(YX_bin_list$Y, YX_bin_list$X, R = 2, model = "nrm", seed = 6886, symmetric = FALSE, burn = 200, nscan = 300, odens = 1, plot = FALSE, print = FALSE)
-# replications elapsed relative user.self sys.self user.child sys.child
-# 2           10 191.807    1.259   244.864  219.794          0         0
-# 1           10 256.450    1.683   301.692  271.462          0         0
-# 3           10 152.363    1.000   254.096  212.006          0         0
-
-# 2 ame_rep_tmp(YX_bin_long$Y, YX_bin_long$X, R = 2, model = "nrm", seed = 6886, symmetric = FALSE, burn = 200, nscan = 300, odens = 1, plot = FALSE, print = FALSE)
-# 1     ame_rep(YX_bin_long$Y, YX_bin_long$X, R = 2, model = "nrm", seed = 6886, symmetric = FALSE, burn = 200, nscan = 300, odens = 1, plot = FALSE, print = FALSE)
-# 3    ame_repL(YX_bin_list$Y, YX_bin_list$X, R = 2, model = "nrm", seed = 6886, symmetric = FALSE, burn = 200, nscan = 300, odens = 1, plot = FALSE, print = FALSE)
-# replications elapsed relative user.self sys.self user.child sys.child
-# 2            5  37.944    1.000    83.931   46.737          0         0
-# 1            5  79.786    2.103   169.949  102.107          0         0
-# 3            5  63.156    1.664   141.184   78.098          0         0
-# > 
+# 1     ame_rep(YX_bin_long$Y, YX_bin_long$X, R = 2, model = "nrm", seed = 6886, symmetric = FALSE, burn = 5000, nscan = 5000, odens = 1, plot = FALSE, print = FALSE)
+# 2 ame_repTest(YX_bin_long$Y, YX_bin_long$X, R = 2, model = "nrm", seed = 6886, symmetric = FALSE, burn = 5000, nscan = 5000, odens = 1, plot = FALSE, print = FALSE)
+# replications  elapsed relative user.self sys.self
+# 1            3 1194.408    2.251  2069.008 1612.599
+# 2            3  530.648    1.000   961.158  712.978
+# user.child sys.child
+# 1          0         0
+# 2          0         0
 
 fitList<-ame_repL(YX_bin_list$Y,YX_bin_list$X,R=0,
 	model='bin',

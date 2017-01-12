@@ -227,6 +227,8 @@ ame_rep<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   rho<-0
   Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
   U<-V<-matrix(0, nrow(Y[,,1]), R) 
+  symLoopIDs <- lapply(1:(nscan + burn), function(x){ rep(sample(1:nrow(U)),4) })  
+  asymLoopIDs <- lapply(1:(nscan + burn), function(x){ sample(1:R) })
   
     
   #  output items
@@ -348,9 +350,9 @@ ame_rep<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       if(symmetric)
       { 
         EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
-        UV<-rUV_sym_fc(EA, U, V, s2/dim(E)[3],shrink) 
+        UV<-rUV_sym_fc(EA, U, V, s2/dim(E)[3],shrink,symLoopIDs[[s]]) 
       }
-      if(!symmetric){UV<-rUV_rep_fc(E, U, V,rho, s2,shrink) }
+      if(!symmetric){UV<-rUV_rep_fc(E, U, V,rho, s2,shrink,asymLoopIDs[[s]]) }
 
       U<-UV$U ; V<-UV$V
     }

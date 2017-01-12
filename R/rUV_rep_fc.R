@@ -19,7 +19,7 @@
 #' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @export rUV_rep_fc
 rUV_rep_fc <-
-  function(E.T,U,V,rho,s2=1,shrink=TRUE)
+  function(E.T,U,V,rho,s2=1,shrink=TRUE,tmp)
   {
     Time<-dim(E.T)[3]
        
@@ -44,7 +44,7 @@ rUV_rep_fc <-
       return((g^2+d^2)*matrix(Er,n)+2*g*d*matrix(Er,n,byrow=T))
     }
     
-    for(r in sample(1:R))
+    for(r in tmp)
     {
       #Er.t<-Es.t<-array(dim=dim(E))
       #for (t in 1:Time){       

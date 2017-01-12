@@ -12,8 +12,8 @@ odmax=rep(max(apply(Y>0,c(1,3),sum,na.rm=TRUE)),nrow(Y[,,1])), seed = 1,
 nscan = 10000, burn = 500, odens = 25, plot=TRUE, print = TRUE, gof=TRUE)
 }
 \arguments{
-\item{Y}{an n x n x T array of relational matrix, where the third dimension correponds to replicates (over time, for example). See
-model below for various data types.}
+\item{Y}{an n x n x T array of relational matrix, where the third dimension correponds 
+to replicates (over time, for example). See model below for various data types.}
 
 \item{Xdyad}{an n x n x pd x T array of covariates}
 
@@ -55,6 +55,9 @@ models}
 \item{print}{logical: print results while running?}
 
 \item{gof}{logical: calculate goodness of fit statistics?}
+
+\item{startVals}{List from previous model run containing parameter
+starting values for new MCMC}
 }
 \value{
 \item{BETA}{posterior samples of regression coefficients}
@@ -108,6 +111,6 @@ fit<-ame_repTest(YX_bin_long$Y,YX_bin_long$X,burn=5,nscan=5,odens=1,model="bin")
 
 }
 \author{
-Peter Hoff, Yanjun He
+Peter Hoff, Yanjun He, Shahryar Minhas
 }
 
