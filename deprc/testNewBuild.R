@@ -30,24 +30,35 @@ library(rbenchmark)
 # load data
 data(YX_bin_long) ; data(YX_bin_list) # same as other but replicates are stored in list
 
+Y = YX_bin_list$Y
+Xdyad = YX_bin_list$X
+Xrow=NULL ; Xcol=NULL ; intercept=TRUE
+# get actor info
+actorByYr <- lapply(Y, rownames)
+actorSet <- sort(unique(unlist( actorByYr ))) ; n <- length(actorSet)
+N<-length(Y) ; pdLabs <- names(Y) ; Y<-lapply(Y, function(y){diag(y)=NA; return(y)})
+# convert into large array format
+tmp <- array(NA, dim=c(n,n,N),
+             dimnames=list( actorSet, actorSet, names(Y) ) )
+for(t in 1:N){ tmp[rownames(Y[[t]]),rownames(Y[[t]]),t] <- Y[[t]] }
+Y <- tmp ; rm(tmp)
+
+if(!is.null(Xdyad)){
+  tmp <- array(NA, dim=c(n,n,dim(Xdyad[[1]])[3],N),
+               dimnames=list( actorSet, actorSet, dimnames(Xdyad[[1]])[[3]], pdLabs ) )
+  for(t in 1:N){
+    tmp[rownames(Xdyad[[t]]),rownames(Xdyad[[t]]),,t] <- Xdyad[[t]] }
+  Xdyad <- tmp ; rm(tmp) }
+
 # set.seed(6886) ; fitOrig<-ame_rep(
-#   YX_bin_long$Y,YX_bin_long$X,R=2,
-# 	model='bin', seed=6886,symmetric=TRUE,intercept=FALSE,
-# 	burn=200,nscan=2000,odens=1,plot=FALSE, print=FALSE) 
+#   Y, Xdyad, R=2,
+#   model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
+#   burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE)
 
-set.seed(6886) ; fitOrigTest<-ame_repTest(
-  YX_bin_long$Y,YX_bin_long$X,R=2,
-	model='bin', seed=6886,symmetric=TRUE,intercept=TRUE,
-	burn=0,nscan=839,odens=1,plot=FALSE, print=FALSE)
-
-set.seed(6886) ; fitOrig2<-ame_rep(
-  YX_bin_long$Y,YX_bin_long$X,R=2,
-	model='bin', seed=6886,symmetric=FALSE,intercept=FALSE,
-	burn=200,nscan=2000,odens=1,plot=FALSE, print=FALSE)
-# set.seed(6886) ; fitOrigL<-ame_repL(
-#   YX_bin_list$Y,YX_bin_list$X,R=2,
-#   model='nrm', seed=6886,symmetric=FALSE,
-#   burn=200,nscan=300,odens=1,plot=FALSE, print=FALSE)
+set.seed(6886) ; fitOrig2<-ame_repL(
+  Y=YX_bin_list$Y, Xdyad=YX_bin_list$X, R=2,
+  model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
+  burn=0,nscan=100,odens=1,plot=TRUE, print=TRUE)
 
 apply(fitOrig$BETA, 2, mean)
 apply(fitOrigTest$BETA, 2, mean)
@@ -72,7 +83,6 @@ apply(fitOrig2$U, 2, mean)
 apply(fitOrig$V, 2, mean)
 apply(fitOrigTest$V, 2, mean)
 apply(fitOrig2$V, 2, mean)
-
 
 ## test to see if can refti
 set.seed(6886) ; fitOrigTest_2<-ame_repTest(

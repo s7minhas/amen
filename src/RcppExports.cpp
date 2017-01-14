@@ -56,6 +56,25 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rbeta_rep_cpp
+List rbeta_rep_cpp(arma::cube zCube, arma::cube XrCube, arma::cube XcCube, arma::cube mXCube, arma::cube mXtCube, arma::cube xxCube, arma::cube xxTCube, double td, double to);
+RcppExport SEXP amen_rbeta_rep_cpp(SEXP zCubeSEXP, SEXP XrCubeSEXP, SEXP XcCubeSEXP, SEXP mXCubeSEXP, SEXP mXtCubeSEXP, SEXP xxCubeSEXP, SEXP xxTCubeSEXP, SEXP tdSEXP, SEXP toSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type zCube(zCubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type XrCube(XrCubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type XcCube(XcCubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type mXCube(mXCubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type mXtCube(mXtCubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type xxCube(xxCubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type xxTCube(xxTCubeSEXP);
+    Rcpp::traits::input_parameter< double >::type td(tdSEXP);
+    Rcpp::traits::input_parameter< double >::type to(toSEXP);
+    rcpp_result_gen = Rcpp::wrap(rbeta_rep_cpp(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, td, to));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rrho_mh_rep_cpp
 double rrho_mh_rep_cpp(arma::cube ET, double rho, double s2);
 RcppExport SEXP amen_rrho_mh_rep_cpp(SEXP ETSEXP, SEXP rhoSEXP, SEXP s2SEXP) {

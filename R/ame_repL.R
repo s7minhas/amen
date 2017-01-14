@@ -83,21 +83,23 @@
 #' # you should run the Markov chain much longer than this
 #' 
 #' @export ame_repL
-ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
+ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL, 
            rvar = !(model=="rrl") , cvar = TRUE, dcor = !symmetric, 
-           nvar=TRUE, 
+           nvar = TRUE, 
            R = 0,
-           model="nrm",
-           intercept=!is.element(model,c("rrl","ord")), 
-           symmetric=FALSE, 
-           odmax=NULL,
+           model = "nrm",
+           intercept = !is.element(model,c("rrl","ord")), 
+           symmetric = FALSE, 
+           odmax = NULL,
            seed = 1, nscan = 10000, burn = 500, odens = 25,
-           plot=TRUE, print = TRUE, gof=TRUE, startVals=NULL)
-{ 
+           plot = TRUE, print = FALSE, gof = TRUE, startVals = NULL)
+{
+  #
+  if( nscan %% odens !=0  ){ stop('"odens" must be a multiple of "nscan"')}
 
   # set random seed 
   set.seed(seed)
-
+   
   # get actor info
   actorByYr <- lapply(Y, rownames)
   actorSet <- sort(unique(unlist( actorByYr ))) ; n <- length(actorSet)
@@ -169,7 +171,9 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
 
     X[,,,t]<-Xt
   } 
-  if( (pr+pc+pd+intercept)>0 ){ dimnames(X)[[3]]<-dimnames(Xt)[[3]] }
+  if( (pr+pc+pd+intercept)>0 ){
+    dimnames(X) = list(actorSet,actorSet,dimnames(Xt)[[3]],dimnames(Y)[[3]])
+  }
   dimnames(X)[[4]]<-dimnames(Y)[[3]]
 
   # add NAs from design array to Y
@@ -185,7 +189,7 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   }
 
   # turn NAs in design array to zero
-  X[is.na(X)]<-0  
+  X[is.na(X)]<-0
 
   # useful design array transformations to do up front
   ## these are used in calculation of rbeta
@@ -197,29 +201,32 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   # regression sums of squares
   xxLong <- array(apply(mXLong, 3, function(x){ t(x)%*%x }), dim=c(dim(X)[3],dim(X)[3],N))
   xxTLong <- array(unlist(lapply(1:N, function(t){ t(mXLong[,,t]) %*% mXtLong[,,t] })), dim=dim(xxLong))
-  
+
   # design matrix warning for rrl
-  if(model=='rrl'){
-    if( any(apply(apply(X,c(1,3),var),2,sum)==0) & !any( apply(X,c(3),function(x){var(c(x))})==0) ){
-      cat("WARNING: row effects are not estimable using this procedure ","\n")  
-    }
+  if( model=="rrl" & any(apply(apply(X,c(1,3),var),2,sum)==0)
+                   & !any( apply(X,c(3),function(x){var(c(x))})==0) )
+  {
+    cat("WARNING: row effects are not estimable using this procedure ","\n")
   }
 
   # design matrix warning for rrl and ord
-  if( is.element(model,c("ord","rrl")) ){
-    if( any( apply(X,c(3),function(x){var(c(x))})==0 ) ){
-      cat("WARNING: an intercept is not estimable using this procedure ","\n")
-    }
+  if( is.element(model,c("ord","rrl")) & 
+      any( apply(X,c(3),function(x){var(c(x))})==0 ) )
+  {
+    cat("WARNING: an intercept is not estimable using this procedure ","\n")
   }
-    
+
   # construct matrix of ranked nominations for frn, rrl   
-  if(is.element(model,c("frn","rrl")) ){
+  if(is.element(model,c("frn","rrl")))
+  {
     ymx<-max(apply(1*(Y>0),c(1,3),sum,na.rm=TRUE))
     YL<-list()
-    for (t in 1:N ){
+    for (t in 1:N) 
+    {
       YL.t<-NULL
       warn<-FALSE
-      for(i in 1:nrow(Y[,,1]) ){
+      for(i in 1:nrow(Y[,,1]))
+      {
         yi<-Y[i,,t] ; rnkd<-which( !is.na(yi)&yi>0 )
         if(length(yi[rnkd])>length(unique(yi[rnkd]))){warn<-TRUE}
         yi[rnkd]<-rank(yi[rnkd],ties.method="random")
@@ -232,35 +239,39 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   }
     
   if(is.null(startVals)){
-    # starting Z values
-    Z<-array(dim=dim(Y))
-    for (t in 1:N ){
+  # starting Z values
+  Z<-array(dim=dim(Y))
+    for (t in 1:N)
+    {
       if(model=="nrm"){Z[,,t]<-Y[,,t] }
       if(model=="ord"){Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),ncol(Y[,,t]))} 
-      if(model=="rrl" ){  
+      if(model=="rrl")
+      {  
         Z[,,t]<-matrix(t(apply(Y[,,t],1,zscores)),nrow(Y[,,t]),ncol(Y[,,t])) 
       }  
-      if(model=="bin" ){ 
+      if(model=="bin")
+      { 
         Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t])) 
-        # zyMax <- max(Z[,,t][Y[,,t]==0],na.rm=TRUE)
-        zyMax <- ifelse( sum(Y[,,t]==0, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==0],na.rm=TRUE), 0)
-        # zyMin <- min(Z[,,t][Y[,,t]==1],na.rm=TRUE)
-        zyMin <- ifelse( sum(Y[,,t]==1, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==1],na.rm=TRUE), 0)
-        z01<-.5*(zyMax+zyMin ) 
+        z01<-.5*(max(Z[,,t][Y[,,t]==0],na.rm=TRUE)+
+                 min(Z[,,t][Y[,,t]==1],na.rm=TRUE) ) 
         Z[,,t]<-Z[,,t] - z01
       } 
         
-      if(is.element(model,c("cbin","frn")) ){
+      if(is.element(model,c("cbin","frn")))
+      {
         Z[,,t]<-Y[,,t]
-        for(i in 1:nrow(Y[,,t]) ){
+        for(i in 1:nrow(Y[,,t]))
+        {
           yi<-Y[i,,t]
           zi<-zscores(yi)
           rnkd<-which( !is.na(yi) & yi>0 ) 
-          if(length(rnkd)>0 && min(zi[rnkd])<0 ){ 
+          if(length(rnkd)>0 && min(zi[rnkd])<0)
+          { 
             zi[rnkd]<-zi[rnkd] - min(zi[rnkd]) + 1e-3 
           }
             
-          if(length(rnkd)<odmax[i] ){
+          if(length(rnkd)<odmax[i]) 
+          {
             urnkd<-which( !is.na(yi) & yi==0 ) 
             if(max(zi[urnkd])>0) { zi[urnkd]<-zi[urnkd] - max(zi[urnkd]) -1e-3 }
           }
@@ -269,17 +280,16 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
         } 
       }
     }
-
+      
     # starting values for missing entries  
     ZA<-Z
-    for (t in 1:N){ 
+    for (t in 1:N)
+    { 
       mu<-mean(Z[,,t],na.rm=TRUE) 
       a<-rowMeans(Z[,,t],na.rm=TRUE) ; b<-colMeans(Z[,,t],na.rm=TRUE)
-      # a[is.na(a)] <- mean(a, na.rm=TRUE) ; b[is.na(b)] <- mean(b, na.rm=TRUE)
-      a[is.na(a)] <- 0 ; b[is.na(b)] <- 0
       ZA[,,t]<-mu + outer(a,b,"+")
     }
-    Z[is.na(Z)]<-ZA[is.na(Z)]
+    Z[is.na(Z)]<-ZA[is.na(Z)] 
       
     # other starting values
     beta<-rep(0,dim(X)[3]) 
@@ -288,7 +298,7 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
     U<-V<-matrix(0, nrow(Y[,,1]), R) 
   } # close of startVals condition    
-  
+
   # unpack startVals list if applicable
   if(!is.null(startVals)){
     Z<-startVals$Z ; beta<-startVals$beta ; a<-startVals$a ; b<-startVals$b
@@ -296,11 +306,14 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     Sab<-startVals$Sab
   }
 
-  #  output items
+  symLoopIDs <- lapply(1:(nscan + burn), function(x){ rep(sample(1:nrow(U)),4) })  
+  asymLoopIDs <- lapply(1:(nscan + burn), function(x){ sample(1:R) })  
+    
+  # output items
   BETA <- matrix(nrow = nscan/odens, ncol = dim(X)[3] - pr*symmetric)
-  VC<-matrix(nrow=nscan/odens,ncol=5-3*symmetric)   
-  UVPS <- U %*% t(V) * 0 
-  APS<-BPS<- rep(0,nrow(Y[,,1]))  
+  VC<-matrix(nrow=nscan/odens,ncol=5-3*symmetric)
+  UVPS <- U %*% t(V) * 0
+  APS<-BPS<-rep(0,nrow(Y[,,1]))
   YPS<-array(0,dim=dim(Y)) ; dimnames(YPS)<-dimnames(Y)
   GOF <- matrix(NA, nrow=(nscan/odens)+1, ncol=4,
     dimnames=list(c('obs',1:(nscan/odens)),c("sd.rowmean","sd.colmean","dyad.dep","triad.dep")))
@@ -308,13 +321,15 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   names(APS)<-names(BPS)<-rownames(U)<-rownames(V)<-rownames(Y[,,1])
    
   # names of parameters, asymmetric case  
-  if(!symmetric ){ 
+  if(!symmetric)
+  { 
     colnames(VC) <- c("va", "cab", "vb", "rho", "ve") 
     colnames(BETA) <- dimnames(X)[[3]] 
   }   
 
   # names of parameters, symmetric case
-  if(symmetric ){ 
+  if(symmetric)
+  { 
     colnames(VC) <- c("va", "ve")  
     rb<-intercept+seq(1,pr,length=pr) ; cb<-intercept+pr+seq(1,pr,length=pr)
     bnames<-dimnames(X)[[3]]
@@ -322,25 +337,31 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     bnn<-gsub("row",bnames[rb],replacement="node") 
     bnd<-bnames[-c(1*intercept,rb,cb)]
     colnames(BETA)<-c(bni,bnn,bnd) 
-  }
+  }    
 
   # MCMC
-  have_coda<-suppressWarnings(try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
+  have_coda<-suppressWarnings(
+               try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
 
-  for (s in 1:(nscan + burn) ){ 
-
+  if(burn!=0){pbBurn <- txtProgressBar(min=1,max=burn,style=3)}
+  if(!print){pbMain <- txtProgressBar(min=burn+1,max=nscan+burn,style=3)}
+  for (s in 1:(nscan + burn)) 
+  { 
+   
     # update Z
     E.nrm<-array(dim=dim(Z))
     EZt <- get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
     for(t in 1:N ){
       EZ<-EZt[,,t]
-      if(model=="nrm" ){ 
+      if(model=="nrm")
+      { 
         Z[,,t]<-rZ_nrm_fc(Z[,,t],EZ,rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ
       }
       if(model=="bin"){ Z[,,t]<-rZ_bin_fc(Z[,,t],EZ,rho,Y[,,t]) }
       if(model=="ord"){ Z[,,t]<-rZ_ord_fc(Z[,,t],EZ,rho,Y[,,t]) }
       if(model=="cbin"){Z[,,t]<-rZ_cbin_fc(Z[,,t],EZ,rho,Y[,,t],odmax,odobs)}
-      if(model=="frn" ){ 
+      if(model=="frn")
+      { 
         Z[,,t]<-rZ_frn_fc(Z[,,t],EZ,rho,Y[,,t],YL[[t]],odmax,odobs)
       }
       if(model=="rrl"){ Z[,,t]<-rZ_rrl_fc(Z[,,t],EZ,rho,Y[,,t],YL[[t]]) } 
@@ -349,48 +370,51 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     # update s2
     if (model=="nrm"){ s2<-rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2))) }
       
-    # # update beta, a b
-    # iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
-    # tmpz<-eigen(Sabs) ; k<-sum(zapsmall(tmpz$val)>0 )
-    # G<-tmpz$vec[,1:k] %*% sqrt(diag(tmpz$val[1:k],nrow=k))
-    # tmp <- rbeta_ab_rep_fc_cpp( 
-    #   zCube=sweep(Z,c(1,2),U%*%t(V)), XrCube=XrLong, XcCube=XcLong, 
-    #   mXCube=mXLong, mXtCube=mXtLong, xxCube=xxLong, xxTCube=xxTLong,
-    #   iSe2=iSe2, Sabs=Sabs, k=k, G=G )
-    # beta <- c(tmp$beta)
-    # a <- c(tmp$a) * rvar
-    # b <- c(tmp$b) * cvar 
-    # if(symmetric){ a<-b<-(a+b)/2 }
     # update beta, a b
-    tmp <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)
+    tmp <- rbetaCPP_ab_rep_fc(
+      Z.T=sweep(Z,c(1,2),U%*%t(V)), Sab=Sab, rho=rho, s2=s2,
+      XrLong=XrLong, XcLong=XcLong, mXLong=mXLong,
+      mXtLong=mXtLong, xxLong=xxLong, xxTLong=xxTLong )
     beta <- tmp$beta
     a <- tmp$a * rvar
     b <- tmp$b * cvar 
-    if(symmetric){ a<-b<-(a+b)/2 }        
+    if(symmetric){ a<-b<-(a+b)/2 }
+    # # update beta, a b
+    # tmp <- rbeta_ab_rep_fcL(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2,
+    #   XrLong, XcLong, mXLong, mXtLong, xxLong, xxTLong)
+    # beta <- tmp$beta
+    # a <- tmp$a * rvar
+    # b <- tmp$b * cvar 
+    # if(symmetric){ a<-b<-(a+b)/2 }    
  
     # update Sab - full SRM
-    if(rvar & cvar & !symmetric ){
+    if(rvar & cvar & !symmetric)
+    {
       Sab<-solve(rwish(solve(diag(2)+crossprod(cbind(a,b))),3+nrow(Z[,,1])))
     }
 
     # update Sab - rvar only
-    if (rvar & !cvar & !symmetric ){
+    if (rvar & !cvar & !symmetric)
+    {
       Sab[1, 1] <- 1/rgamma(1, (1 + nrow(Y[,,t]))/2, (1 + sum(a^2))/2)
     }
      
     # update Sab - cvar only 
-    if (!rvar & cvar & !symmetric ){
+    if (!rvar & cvar & !symmetric) 
+    {
       Sab[2, 2] <- 1/rgamma(1, (1 + nrow(Y[,,t]))/2, (1 + sum(b^2))/2)
     }
      
     # update Sab - symmetric case
-    if(symmetric & nvar ){
+    if(symmetric & nvar)
+    {
       Sab[1,1]<-Sab[2,2]<-1/rgamma(1,(1+nrow(Y))/2,(1+sum(a^2))/2)
       Sab[1,2]<-Sab[2,1]<-.999*Sab[1,1]   
     }
-
+ 
     # update rho
-    if( dcor ){
+    if(dcor)
+    {
       E.T <- Z - get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
       rho<-rrho_mh_rep_cpp(E.T, rho,s2)
     }
@@ -399,29 +423,35 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     if(symmetric){ rho<-min(.9999,1-1/sqrt(s)) }
 
     # update U,V
-    if (R > 0){
+    if (R > 0)
+    {
       E <- Z-get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U*0, V*0 )
-      shrink <- (s>.5*burn)
-      if(symmetric ){ 
+      shrink<- (s>.5*burn)
+
+      if(symmetric)
+      { 
         EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
-        UV<-rUV_sym_fc_cpp(EA, U, V, s2/dim(E)[3], shrink, rep(sample(1:nrow(E)),4)-1)
+        UV<-rUV_sym_fc_cpp(EA, U, V, s2/dim(E)[3], shrink, symLoopIDs[[s]]-1)
       }
       if(!symmetric){
         UV <- rUV_rep_fc_cpp(E, U, V, rho, s2, 
           mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)),
-          maxmargin=1e-6, shrink, sample(1:R)-1 )
-      }
+          maxmargin=1e-6, shrink, asymLoopIDs[[s]]-1 )
+      }      
+
       U<-UV$U ; V<-UV$V
     }
 
     # burn-in countdown
-    if(s%%odens==0&s<=burn){cat(round(100*s/burn,2)," pct burnin complete \n")}
-  
+    if(burn!=0){setTxtProgressBar(pbBurn,s)}
+
     # save parameter values and monitor the MC
-    if(s%%odens==0 & s>burn ){ 
+    if(s==burn+1&!print&burn!=0){cat('\nBurn-in period complete.');close(pbBurn)}
+    if(s%%odens==0 & s>burn) 
+    { 
 
       # save BETA and VC - symmetric case 
-      if(symmetric ){
+      if(symmetric){
         br<-beta[rb] ; bc<-beta[cb] ; bn<-(br+bc)/2
         sbeta<-c(beta[1*intercept],bn,beta[-c(1*intercept,rb,cb)] )
         BETA[(s-burn)/odens,]<-beta
@@ -429,9 +459,9 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       }
     
       # save BETA and VC - asymmetric case 
-      if(!symmetric ){
+      if(!symmetric){
         BETA[(s-burn)/odens,]<-beta
-        VC[(s-burn)/odens,]<- c(Sab[upper.tri(Sab, diag = T)], rho,s2)        
+        VC[(s-burn)/odens,]<- c(Sab[upper.tri(Sab, diag = T)], rho,s2)
       }
 
       # update posterior sums of random effects
@@ -442,20 +472,23 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       # simulate from posterior predictive 
       Ys<-array(dim=dim(Z))
       EZ <- get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
-      for(t in 1:N ){
+      for(t in 1:N){
         EZt<-EZ[,,t]
-        if(symmetric){ EZt<-(EZt+t(EZt))/2 }
-        if(model=="bin"){ Ys[,,t]<-simY_bin(EZt,rho) }
-        if(model=="cbin"){ Ys[,,t]<-1*(simY_frn(EZt,rho,odmax,YO=Y[,,t])>0)}
-        if(model=="frn"){ Ys[,,t]<-simY_frn(EZt,rho,odmax,YO=Y[,,t]) }
-        if(model=="rrl"){ Ys[,,t]<-simY_rrl(EZt,rho,odobs,YO=Y[,,t] ) }
-        if(model=="nrm"){ Ys[,,t]<-simY_nrm(EZt,rho,s2) }
-        if(model=="ord"){ Ys[,,t]<-simY_ord(EZt,rho,Y[,,t]) }
+        if(symmetric){ EZ[,,t]<-(EZ[,,t]+t(EZ[,,t]))/2 }
+
+        if(model=="bin"){ Ys[,,t]<-simY_bin(EZ[,,t],rho) }
+        if(model=="cbin"){ Ys[,,t]<-1*(simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t])>0) }
+        if(model=="frn"){ Ys[,,t]<-simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t]) }
+        if(model=="rrl"){ Ys[,,t]<-simY_rrl(EZ[,,t],rho,odobs,YO=Y[,,t] ) }
+        if(model=="nrm"){ Ys[,,t]<-simY_nrm(EZ[,,t],rho,s2) }
+        if(model=="ord"){ Ys[,,t]<-simY_ord(EZ[,,t],rho,Y[,,t]) }
     
-        if(symmetric ){  
+        if(symmetric)
+        {
           Yst<-Ys[,,t] ; Yst[lower.tri(Yst)]<-0 ; Ys[,,t]<-Yst+t(Yst)
         }
-      } 
+
+      }
 
       # update posterior sum
       YPS<-YPS+Ys
@@ -464,43 +497,52 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       if(gof){ Ys[is.na(Y)]<-NA ; GOF[((s-burn)/odens)+1,]<-rowMeans(apply(Ys,3,gofstats)) }
        
       # print MC progress 
-      if(print){
-        cat(s,round(apply(BETA,2,mean),2),":",round(apply(VC,2,mean),2),"\n")
-        if (have_coda & nrow(VC) > 3 & length(beta)>0){
-          cat(round(coda::effectiveSize(BETA)), "\n")
+      if(print)
+      {
+        cat('\n',s,
+          round(apply(BETA[1:(s-burn)/odens,,drop=FALSE],2,mean),2),":",
+          round(apply(VC[1:(s-burn)/odens,,drop=FALSE],2,mean),2),"\n")
+        if (have_coda & nrow(VC[1:(s-burn)/odens,,drop=FALSE]) > 3 & length(beta)>0) 
+        {
+          cat(round(coda::effectiveSize(BETA[1:(s-burn)/odens,,drop=FALSE])), "\n")
         }
       }
 
       # plot MC progress
-      if(plot){
+      if(plot & s==nscan)
+      {
         # plot VC
         par(mfrow=c(1+2*gof,2),mar=c(3,3,1,1),mgp=c(1.75,0.75,0))
-        mVC <- apply(VC, 2, median)
-        matplot(VC, type = "l", lty = 1)
+        mVC <- apply(VC[1:(s-burn)/odens,,drop=FALSE], 2, median)
+        matplot(VC[1:(s-burn)/odens,,drop=FALSE], type = "l", lty = 1)
         abline(h = mVC, col = 1:length(mVC)) 
        
         # plot BETA
-        if(length(beta)>0){
-          mBETA <- apply(BETA, 2, median)
-          matplot(BETA, type = "l", lty = 1, col = 1:length(mBETA))
+        if(length(beta)>0) 
+        {
+          mBETA <- apply(BETA[1:(s-burn)/odens,,drop=FALSE], 2, median)
+          matplot(BETA[1:(s-burn)/odens,,drop=FALSE], type = "l", lty = 1, col = 1:length(mBETA))
           abline(h = mBETA, col = 1:length(mBETA))
           abline(h = 0, col = "gray") 
-        } 
+        }
         
         # plot GOF
-        if(gof){
-          for(k in 1:4){
-            hist(GOF[-1,k],xlim=range(GOF[,k]),main="",prob=TRUE,
-                 xlab=colnames(GOF)[k],col="lightblue",ylab="",yaxt="n")  
+        if(gof)
+        {
+          for(k in 1:4)
+          {
+            hist(GOF[2:(s-burn)/odens,k],
+              xlim=range(GOF[1:(s-burn)/odens,k]),main="",prob=TRUE,
+              xlab=colnames(GOF)[k],col="lightblue",ylab="",yaxt="n")  
             abline(v=GOF[1,k],col="red") 
           }
-        } 
-      } 
+        }
+      } # plot code if applicable
 
-    } # end post burnin save
-
-
+    } # post burn-in
+  if(!print){setTxtProgressBar(pbMain,s)}
   } # end MCMC  
+  if(!print){close(pbMain)}
     
   # output 
 
@@ -510,8 +552,9 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   UVPM<-UVPS/nrow(VC)
   YPM<-YPS/nrow(VC) 
   EZ<-array(dim=dim(Y)) 
-  for (t in 1:N){
-    EZ[,,t]<-Xbeta_cpp(array(X[,,,t],dim(X)[1:3]),apply(BETA,2,mean)) + 
+  for (t in 1:N)
+  {
+    EZ[,,t]<-Xbeta(array(X[,,,t],dim(X)[1:3]),apply(BETA,2,mean)) + 
       outer(APM,BPM,"+")+UVPM 
   }
 
@@ -576,9 +619,8 @@ ame_repL<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     # create fitted object
     fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
       YPM=YPM,GOF=GOF, startVals=startVals)
-  } 
+  }
 
   class(fit) <- "ame"
   fit
-
 }

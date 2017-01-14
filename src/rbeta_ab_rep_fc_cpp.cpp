@@ -99,7 +99,7 @@ List rbeta_ab_rep_fc_cpp(
     }
 
     if(p > 0){
-      lb = lb + mXs.t() * vectorise(Zs);
+      lb = lb + (mXs.t() * vectorise(Zs));
       Qb = Qb + XXs + ( xxCube.slice(t)/mXs.n_rows )/N;
     }
 
@@ -112,6 +112,9 @@ List rbeta_ab_rep_fc_cpp(
     XcT = XcT + Xsc;
   }
 
+  // dyadic and prior contributions
+
+  // row and column reduction
   arma::mat ab = arma::zeros(n,2);
 
   arma::mat K; arma::mat idmatk; arma::mat A; arma::mat B;

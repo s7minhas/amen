@@ -72,6 +72,28 @@ rbeta_ab_rep_fc_cpp <- function(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, 
     .Call('amen_rbeta_ab_rep_fc_cpp', PACKAGE = 'amen', zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, iSe2, Sabs, k, G)
 }
 
+#' Generates parameters to aid in Gibbs sampling of regression coefficient
+#' with independent replicate relational data
+#' 
+#' @param Z.T n x n x T array, with the third dimension for replicates.
+#' Each slice of the array is a (latent) normal relational matrix, with
+#' multiplicative effects subtracted out
+#' @param XrCube n x p x T row covariate array generated within ame_repL fn
+#' @param XcCube n x p x T column covariate array generated within ame_repL fn
+#' @param mXCube n^2 x p x T design array generated within ame_repL fn
+#' @param mXtCube n^2 x p x T transposed design array generated within ame_repL fn
+#' @param xxCube p x p x T regression sum of squares array generated within ame_repl fn
+#' @param xxTCube p x p x T transposed regression sum of squares array generated 
+#' within ame_repl fn
+#' @param iSe2 variance matrix
+#' @return list of parameters to feed into gibbs sampling of covariate,
+#' a random effects, and b random effects
+#' @author Shahryar Minhas
+#' @export rbeta_rep_cpp
+rbeta_rep_cpp <- function(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, td, to) {
+    .Call('amen_rbeta_rep_cpp', PACKAGE = 'amen', zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, td, to)
+}
+
 #' Metropolis update for dyadic correlation with independent replicate data
 #' 
 #' Metropolis update for dyadic correlation with independent replicate data. 
