@@ -3,7 +3,6 @@
 S3method(plot,ame)
 S3method(summary,ame)
 export(Xbeta)
-export(Xbeta_cpp)
 export(addlines)
 export(ame)
 export(ameTest)

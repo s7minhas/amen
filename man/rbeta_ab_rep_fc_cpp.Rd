@@ -8,17 +8,21 @@ with independent replicate relational data}
 rbeta_ab_rep_cpp(Z.T,Sab,rho,X.T,s2=1)
 }
 \arguments{
-\item{XrCube}{n x p x T row covariate array generated within ame_repL fn}
+\item{ZT}{n x n x T array, with the third dimension for replicates.
+Each slice of the array is a (latent) normal relational matrix, with
+multiplicative effects subtracted out}
 
-\item{XcCube}{n x p x T column covariate array generated within ame_repL fn}
+\item{Xr}{n x p x T row covariate array generated within ame_repL fn}
 
-\item{mXCube}{n^2 x p x T design array generated within ame_repL fn}
+\item{Xc}{n x p x T column covariate array generated within ame_repL fn}
 
-\item{mXtCube}{n^2 x p x T transposed design array generated within ame_repL fn}
+\item{mX}{n^2 x p x T design array generated within ame_repL fn}
 
-\item{xxCube}{p x p x T regression sum of squares array generated within ame_repl fn}
+\item{mXt}{n^2 x p x T transposed design array generated within ame_repL fn}
 
-\item{xxTCube}{p x p x T transposed regression sum of squares array generated 
+\item{XX}{p x p x T regression sum of squares array generated within ame_repl fn}
+
+\item{XXt}{p x p x T transposed regression sum of squares array generated 
 within ame_repl fn}
 
 \item{iSe2}{variance matrix}
@@ -28,10 +32,6 @@ within ame_repl fn}
 \item{k}{dimensions for row and column random effects}
 
 \item{G}{eigenvalue calcs from Sab}
-
-\item{Z.T}{n x n x T array, with the third dimension for replicates.
-Each slice of the array is a (latent) normal relational matrix, with
-multiplicative effects subtracted out}
 
 \item{e}{n x k gaussian error matrix}
 

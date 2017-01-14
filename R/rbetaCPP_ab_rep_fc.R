@@ -36,47 +36,16 @@ rbetaCPP_ab_rep_fc <-
     k<-sum(zapsmall(tmp$val)>0 )
     ###
     
-    betaTmp<-rbeta_rep_cpp(zCube=Z.T, XrCube=XrLong, XcCube=XcLong, mXCube=mXLong, 
-      mXtCube=mXtLong, xxCube=xxLong, xxTCube=xxTLong, td=td, to=to)
-    lb=c(betaTmp$lb) ; Qb=c(betaTmp$Qb) ; Zr.T=c(betaTmp$ZrT) ; Zc.T=c(betaTmp$ZcT) ; 
-    Xr.T=betaTmp$XrT ; Xc.T=betaTmp$XcT ; rm(betaTmp)
-
-    # lb<-Qb<-Zr.T<-Zc.T<-Xr.T<-Xc.T<-0
-
-    # for (t in 1:N){
-    #   Z<-Z.T[,,t]
-    #   # row sum
-    #   Xr<-matrix(XrLong[,,t,drop=FALSE],nrow=nrow(XrLong),ncol=ncol(XrLong))
-    #   # col sum
-    #   Xc<-matrix(XcLong[,,t,drop=FALSE],nrow=nrow(XcLong),ncol=ncol(XcLong))
-    #   # design matrix
-    #   mX<- matrix(mXLong[,,t,drop=FALSE],nrow=nrow(mXLong),ncol=ncol(mXLong))                      
-    #   # dyad-transposed design matrix
-    #   mXt<-matrix(mXtLong[,,t,drop=FALSE],nrow=nrow(mXtLong),ncol=ncol(mXtLong))                     
-    #   # regression sums of squares
-    #   XX<-matrix(xxLong[,,t,drop=FALSE],nrow=nrow(xxLong),ncol=ncol(xxLong))                      
-    #   XXt<-matrix(xxTLong[,,t,drop=FALSE],nrow=nrow(xxTLong),ncol=ncol(xxTLong))
-      
-    #   mXs<-td*mX+to*mXt                  # matricized transformed X
-    #   XXs<-(to^2+td^2)*XX + 2*to*td*XXt  # sum of squares for transformed X
-    #   Zs<-td*Z+to*t(Z)
-    #   zr<-rowSums(Zs) ; zc<-colSums(Zs) ; zs<-sum(zc) ; n<-length(zr)
-     
-    #   if(p>0)
-    #   { 
-    #   lb<-lb+crossprod(mXs,c(Zs))
-    #   Qb<-Qb+XXs + (XX/nrow(mXs))/N   # WDN
-    #   }     
- 
-    #   Xsr<-td*Xr + to*Xc  # row sums for transformed X
-    #   Xsc<-td*Xc + to*Xr
-      
-    #   Zr.T<-Zr.T+zr
-    #   Zc.T<-Zc.T+zc
-    #   Xr.T<-Xr.T+Xsr
-    #   Xc.T<-Xc.T+Xsc
-      
-    # }
+    betaEstimates<-rbeta_rep_cpp(ZT=Z.T, to=to, td=td, Xr=XrLong,
+      Xc=XcLong, mX=mXLong, mXt=mXtLong, XX=xxLong, 
+      XXt=xxTLong)
+    lb = c(betaEstimates$lb)
+    Qb = c(betaEstimates$Qb)
+    Zr.T = c(betaEstimates$ZrT)
+    Zc.T = c(betaEstimates$ZcT)    
+    Xr.T = betaEstimates$XrT
+    Xc.T = betaEstimates$XcT
+    rm(betaEstimates)
 
     ## dyadic and prior contributions  
 

@@ -48,15 +48,15 @@ rZ_bin_fc_cpp <- function(Z, EZ, rho, Y) {
 #' 
 #' 
 #' @usage rbeta_ab_rep_cpp(Z.T,Sab,rho,X.T,s2=1)
-#' @param Z.T n x n x T array, with the third dimension for replicates.
+#' @param ZT n x n x T array, with the third dimension for replicates.
 #' Each slice of the array is a (latent) normal relational matrix, with
 #' multiplicative effects subtracted out
-#' @param XrCube n x p x T row covariate array generated within ame_repL fn
-#' @param XcCube n x p x T column covariate array generated within ame_repL fn
-#' @param mXCube n^2 x p x T design array generated within ame_repL fn
-#' @param mXtCube n^2 x p x T transposed design array generated within ame_repL fn
-#' @param xxCube p x p x T regression sum of squares array generated within ame_repl fn
-#' @param xxTCube p x p x T transposed regression sum of squares array generated 
+#' @param Xr n x p x T row covariate array generated within ame_repL fn
+#' @param Xc n x p x T column covariate array generated within ame_repL fn
+#' @param mX n^2 x p x T design array generated within ame_repL fn
+#' @param mXt n^2 x p x T transposed design array generated within ame_repL fn
+#' @param XX p x p x T regression sum of squares array generated within ame_repl fn
+#' @param XXt p x p x T transposed regression sum of squares array generated 
 #' within ame_repl fn
 #' @param iSe2 variance matrix
 #' @param Sabs row and column covariance
@@ -68,8 +68,8 @@ rZ_bin_fc_cpp <- function(Z, EZ, rho, Y) {
 #' \item{b}{additive column effects}
 #' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @export rbeta_ab_rep_fc_cpp
-rbeta_ab_rep_fc_cpp <- function(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, iSe2, Sabs, k, G) {
-    .Call('amen_rbeta_ab_rep_fc_cpp', PACKAGE = 'amen', zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, iSe2, Sabs, k, G)
+rbeta_ab_rep_fc_cpp <- function(ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G) {
+    .Call('amen_rbeta_ab_rep_fc_cpp', PACKAGE = 'amen', ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G)
 }
 
 #' Generates parameters to aid in Gibbs sampling of regression coefficient
@@ -90,8 +90,8 @@ rbeta_ab_rep_fc_cpp <- function(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, 
 #' a random effects, and b random effects
 #' @author Shahryar Minhas
 #' @export rbeta_rep_cpp
-rbeta_rep_cpp <- function(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, td, to) {
-    .Call('amen_rbeta_rep_cpp', PACKAGE = 'amen', zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, td, to)
+rbeta_rep_cpp <- function(ZT, to, td, Xr, Xc, mX, mXt, XX, XXt) {
+    .Call('amen_rbeta_rep_cpp', PACKAGE = 'amen', ZT, to, td, Xr, Xc, mX, mXt, XX, XXt)
 }
 
 #' Metropolis update for dyadic correlation with independent replicate data
@@ -206,21 +206,5 @@ rUV_rep_fc_cpp <- function(ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs)
 #' @export rUV_sym_fc_cpp
 rUV_sym_fc_cpp <- function(E, U, V, s2, shrink, uLoopIDs) {
     .Call('amen_rUV_sym_fc_cpp', PACKAGE = 'amen', E, U, V, s2, shrink, uLoopIDs)
-}
-
-#' Linear combinations of submatrices of an array
-#' 
-#' Computes a matrix of expected values based on an array X of predictors and a
-#' vector beta of regression coefficients.
-#' 
-#' 
-#' @usage Xbeta_cpp(X, beta)
-#' @param X an n by n by p array
-#' @param beta a p by 1 vector
-#' @return An n by n matrix
-#' @author Peter Hoff, Shahryar Minhas
-#' @export Xbeta_cpp
-Xbeta_cpp <- function(X, beta) {
-    .Call('amen_Xbeta_cpp', PACKAGE = 'amen', X, beta)
 }
 

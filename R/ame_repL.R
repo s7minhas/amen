@@ -249,13 +249,15 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
       {  
         Z[,,t]<-matrix(t(apply(Y[,,t],1,zscores)),nrow(Y[,,t]),ncol(Y[,,t])) 
       }  
-      if(model=="bin")
-      { 
-        Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t])) 
-        z01<-.5*(max(Z[,,t][Y[,,t]==0],na.rm=TRUE)+
-                 min(Z[,,t][Y[,,t]==1],na.rm=TRUE) ) 
-        Z[,,t]<-Z[,,t] - z01
-      } 
+    if(model=="bin" ){
+      Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t]))
+      # zyMax <- max(Z[,,t][Y[,,t]==0],na.rm=TRUE)
+      zyMax <- ifelse( sum(Y[,,t]==0, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==0],na.rm=TRUE), 0)
+      # zyMin <- min(Z[,,t][Y[,,t]==1],na.rm=TRUE)
+      zyMin <- ifelse( sum(Y[,,t]==1, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==1],na.rm=TRUE), 0)
+      z01<-.5*(zyMax+zyMin ) 
+      Z[,,t]<-Z[,,t] - z01
+    } 
         
       if(is.element(model,c("cbin","frn")))
       {
@@ -285,8 +287,10 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
     ZA<-Z
     for (t in 1:N)
     { 
-      mu<-mean(Z[,,t],na.rm=TRUE) 
+      mu<-mean(Z[,,t],na.rm=TRUE)
       a<-rowMeans(Z[,,t],na.rm=TRUE) ; b<-colMeans(Z[,,t],na.rm=TRUE)
+      # a[is.na(a)] <- mean(a, na.rm=TRUE) ; b[is.na(b)] <- mean(b, na.rm=TRUE)
+      a[is.na(a)] <- 0 ; b[is.na(b)] <- 0
       ZA[,,t]<-mu + outer(a,b,"+")
     }
     Z[is.na(Z)]<-ZA[is.na(Z)] 
@@ -308,6 +312,7 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 
   symLoopIDs <- lapply(1:(nscan + burn), function(x){ rep(sample(1:nrow(U)),4) })  
   asymLoopIDs <- lapply(1:(nscan + burn), function(x){ sample(1:R) })  
+  iter <- 1
     
   # output items
   BETA <- matrix(nrow = nscan/odens, ncol = dim(X)[3] - pr*symmetric)
@@ -370,22 +375,27 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
     # update s2
     if (model=="nrm"){ s2<-rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2))) }
       
-    # update beta, a b
-    tmp <- rbetaCPP_ab_rep_fc(
-      Z.T=sweep(Z,c(1,2),U%*%t(V)), Sab=Sab, rho=rho, s2=s2,
-      XrLong=XrLong, XcLong=XcLong, mXLong=mXLong,
-      mXtLong=mXtLong, xxLong=xxLong, xxTLong=xxTLong )
-    beta <- tmp$beta
-    a <- tmp$a * rvar
-    b <- tmp$b * cvar 
-    if(symmetric){ a<-b<-(a+b)/2 }
     # # update beta, a b
-    # tmp <- rbeta_ab_rep_fcL(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2,
-    #   XrLong, XcLong, mXLong, mXtLong, xxLong, xxTLong)
-    # beta <- tmp$beta
-    # a <- tmp$a * rvar
-    # b <- tmp$b * cvar 
-    # if(symmetric){ a<-b<-(a+b)/2 }    
+    # betaABCalc <- rbetaCPP_ab_rep_fc(
+    #   Z.T=sweep(Z,c(1,2),U%*%t(V)),Sab=Sab,rho=rho,s2=s2,
+    #   XrLong=XrLong, XcLong=XcLong, mXLong=mXLong, 
+    #   mXtLong=mXtLong, xxLong=xxLong, xxTLong=xxTLong
+    #   )
+    # beta <- betaABCalc$beta
+    # a <- betaABCalc$a * rvar
+    # b <- betaABCalc$b * cvar
+    # if(symmetric){ a<-b<-(a+b)/2 }
+    iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
+    tmp<-eigen(Sabs) ; k<-sum(zapsmall(tmp$val)>0 )
+    G<-tmp$vec[,1:k] %*% sqrt(diag(tmp$val[1:k],nrow=k))
+    betaABCalc <- rbeta_ab_rep_fc_cpp(
+      ZT=sweep(Z,c(1,2),U%*%t(V)), Xr=XrLong, Xc=XcLong, mX=mXLong, mXt=mXtLong,
+      XX=xxLong, XXt=xxTLong, iSe2=iSe2, Sabs=Sabs, k=k, G=G
+      )
+    beta <- c(betaABCalc$beta)
+    a <- c(betaABCalc$a) * rvar
+    b <- c(betaABCalc$b) * cvar
+    if(symmetric){ a<-b<-(a+b)/2 }
  
     # update Sab - full SRM
     if(rvar & cvar & !symmetric)
@@ -449,19 +459,19 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
     if(s==burn+1&!print&burn!=0){cat('\nBurn-in period complete.');close(pbBurn)}
     if(s%%odens==0 & s>burn) 
     { 
-
+      
       # save BETA and VC - symmetric case 
       if(symmetric){
         br<-beta[rb] ; bc<-beta[cb] ; bn<-(br+bc)/2
         sbeta<-c(beta[1*intercept],bn,beta[-c(1*intercept,rb,cb)] )
-        BETA[(s-burn)/odens,]<-beta
-        VC[(s-burn)/odens,]<-c(Sab[1,1],s2)
+        BETA[iter,]<-sbeta
+        VC[iter,]<-c(Sab[1,1],s2)
       }
     
       # save BETA and VC - asymmetric case 
       if(!symmetric){
-        BETA[(s-burn)/odens,]<-beta
-        VC[(s-burn)/odens,]<- c(Sab[upper.tri(Sab, diag = T)], rho,s2)
+        BETA[iter,]<-beta
+        VC[iter,]<- c(Sab[upper.tri(Sab, diag = T)], rho,s2)
       }
 
       # update posterior sums of random effects
@@ -494,34 +504,34 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
       YPS<-YPS+Ys
 
       # save posterior predictive GOF stats
-      if(gof){ Ys[is.na(Y)]<-NA ; GOF[((s-burn)/odens)+1,]<-rowMeans(apply(Ys,3,gofstats)) }
+      if(gof){ Ys[is.na(Y)]<-NA ; GOF[(iter)+1,]<-rowMeans(apply(Ys,3,gofstats)) }
        
       # print MC progress 
       if(print)
       {
         cat('\n',s,
-          round(apply(BETA[1:(s-burn)/odens,,drop=FALSE],2,mean),2),":",
-          round(apply(VC[1:(s-burn)/odens,,drop=FALSE],2,mean),2),"\n")
-        if (have_coda & nrow(VC[1:(s-burn)/odens,,drop=FALSE]) > 3 & length(beta)>0) 
+          round(apply(BETA[1:iter,,drop=FALSE],2,mean),2),":",
+          round(apply(VC[1:iter,,drop=FALSE],2,mean),2),"\n")
+        if (have_coda & nrow(VC[1:iter,,drop=FALSE]) > 3 & length(beta)>0) 
         {
-          cat(round(coda::effectiveSize(BETA[1:(s-burn)/odens,,drop=FALSE])), "\n")
+          cat(round(coda::effectiveSize(BETA[1:iter,,drop=FALSE])), "\n")
         }
       }
 
-      # plot MC progress
+      # plot MC results
       if(plot & s==nscan)
       {
         # plot VC
         par(mfrow=c(1+2*gof,2),mar=c(3,3,1,1),mgp=c(1.75,0.75,0))
-        mVC <- apply(VC[1:(s-burn)/odens,,drop=FALSE], 2, median)
-        matplot(VC[1:(s-burn)/odens,,drop=FALSE], type = "l", lty = 1)
+        mVC <- apply(VC[1:iter,,drop=FALSE], 2, median)
+        matplot(VC[1:iter,,drop=FALSE], type = "l", lty = 1)
         abline(h = mVC, col = 1:length(mVC)) 
        
         # plot BETA
         if(length(beta)>0) 
         {
-          mBETA <- apply(BETA[1:(s-burn)/odens,,drop=FALSE], 2, median)
-          matplot(BETA[1:(s-burn)/odens,,drop=FALSE], type = "l", lty = 1, col = 1:length(mBETA))
+          mBETA <- apply(BETA[1:iter,,drop=FALSE], 2, median)
+          matplot(BETA[1:iter,,drop=FALSE], type = "l", lty = 1, col = 1:length(mBETA))
           abline(h = mBETA, col = 1:length(mBETA))
           abline(h = 0, col = "gray") 
         }
@@ -531,14 +541,14 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
         {
           for(k in 1:4)
           {
-            hist(GOF[2:(s-burn)/odens,k],
-              xlim=range(GOF[1:(s-burn)/odens,k]),main="",prob=TRUE,
+            hist(GOF[2:iter,k],
+              xlim=range(GOF[1:iter,k]),main="",prob=TRUE,
               xlab=colnames(GOF)[k],col="lightblue",ylab="",yaxt="n")  
             abline(v=GOF[1,k],col="red") 
           }
         }
       } # plot code if applicable
-
+    iter<-iter+1
     } # post burn-in
   if(!print){setTxtProgressBar(pbMain,s)}
   } # end MCMC  

@@ -2,6 +2,14 @@ rm(list=ls())
 library(amen)
 library(rbenchmark)
 
+# load('~/Dropbox/Research/netsMatter/replications/mansfield_milner_2012/inputData/amenData.rda')
+# set.seed(6886) ; fitOrig <- ame_repL(
+#   Y=yList, Xdyad=xDyadList, Xrow=xNodeList,
+#   model='bin', symmetric=TRUE, R=2, intercept=FALSE,
+#   burn=0, nscan=200, odens=25, seed=6886,
+#   plot=TRUE, print=FALSE, gof=TRUE
+#   )
+
 # ############################################################
 # ############################################################
 # ## Running with changing actor composition
@@ -50,59 +58,46 @@ if(!is.null(Xdyad)){
     tmp[rownames(Xdyad[[t]]),rownames(Xdyad[[t]]),,t] <- Xdyad[[t]] }
   Xdyad <- tmp ; rm(tmp) }
 
-# set.seed(6886) ; fitOrig<-ame_rep(
-#   Y, Xdyad, R=2,
-#   model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
-#   burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE)
+set.seed(6886) ; fitOrig<-ame_rep(
+  Y, Xdyad, R=2,
+  model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
+  burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE)
 
 set.seed(6886) ; fitOrig2<-ame_repL(
   Y=YX_bin_list$Y, Xdyad=YX_bin_list$X, R=2,
   model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
-  burn=0,nscan=100,odens=1,plot=TRUE, print=TRUE)
+  burn=1000,nscan=2000,odens=25,plot=TRUE, print=FALSE)
 
 apply(fitOrig$BETA, 2, mean)
-apply(fitOrigTest$BETA, 2, mean)
 apply(fitOrig2$BETA, 2, mean)
 
 apply(fitOrig$VC, 2,mean)
-apply(fitOrigTest$VC, 2,mean)
 apply(fitOrig2$VC, 2,mean)
 
 mean(fitOrig$APM)
-mean(fitOrigTest$APM)
 mean(fitOrig2$APM)
 
 mean(fitOrig$BPM)
-mean(fitOrigTest$BPM)
 mean(fitOrig2$BPM)
 
 apply(fitOrig$U, 2, mean)
-apply(fitOrigTest$U, 2, mean)
 apply(fitOrig2$U, 2, mean)
 
 apply(fitOrig$V, 2, mean)
-apply(fitOrigTest$V, 2, mean)
 apply(fitOrig2$V, 2, mean)
-
-## test to see if can refti
-set.seed(6886) ; fitOrigTest_2<-ame_repTest(
-  YX_bin_long$Y,YX_bin_long$X,R=2,
-  model='nrm', seed=6886,symmetric=FALSE,
-  burn=0,nscan=5,odens=1,plot=FALSE, print=FALSE,
-  startVals=fitOrigTest$startVals)
 
 benchmark(
 	ame_rep(
-	  YX_bin_long$Y,YX_bin_long$X,R=2,
-	  model='nrm', seed=6886,symmetric=FALSE,
-	  burn=5000,nscan=5000,odens=1,plot=FALSE, print=FALSE
+	  Y, Xdyad, R=2,
+	  model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
+	  burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
 		),
-	ame_repTest(
-	  YX_bin_long$Y,YX_bin_long$X,R=2,
-	  model='nrm', seed=6886,symmetric=FALSE,
-	  burn=5000,nscan=5000,odens=1,plot=FALSE, print=FALSE
+	ame_repL(
+	  Y=YX_bin_list$Y, Xdyad=YX_bin_list$X, R=2,
+	  model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
+	  burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
 	  ),
-	replications=3
+	replications=5
 	)
 
 # 1     ame_rep(YX_bin_long$Y, YX_bin_long$X, R = 2, model = "nrm", seed = 6886, symmetric = FALSE, burn = 5000, nscan = 5000, odens = 1, plot = FALSE, print = FALSE)
@@ -117,7 +112,6 @@ benchmark(
 fitList<-ame_repL(YX_bin_list$Y,YX_bin_list$X,R=0,
 	model='bin',
 	burn=5,nscan=100,odens=1,plot=FALSE, print=FALSE)
-runTests(fitOrig,fitList) # if nothing returned that's good.
 apply(fitOrig$BETA, 2, mean)
 apply(fitList$BETA, 2, mean)
 
@@ -128,7 +122,6 @@ fitOrig<-ame_rep(YX_bin_long$Y,YX_bin_long$X,R=2,
 fitList<-ame_repL(YX_bin_list$Y,YX_bin_list$X,R=2,
 	model='bin', 
 	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
-runTests(fitOrig,fitList) # if nothing returned that's good.
 
 # binary ame_rep with symmetric=TRUE, R=2, rvar=TRUE, cvar=TRUE
 fitOrig<-ame_rep(YX_bin_long$Y,YX_bin_long$X,R=2,
@@ -137,7 +130,6 @@ fitOrig<-ame_rep(YX_bin_long$Y,YX_bin_long$X,R=2,
 fitList<-ame_repL(YX_bin_list$Y,YX_bin_list$X,R=2,
 	model='bin', symmetric=TRUE,
 	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
-runTests(fitOrig,fitList) # if nothing returned that's good.
 ##############################
 
 ##############################
@@ -173,7 +165,6 @@ fitOrig<-ame_rep(Y,Xdyad,Xnode,Xnode,R=0,
 fitList<-ame_repL(yL,xDyadL,xNodeL,xNodeL,R=0,
 	model='bin', 
 	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
-runTests(fitOrig,fitList) # if nothing returned that's good.
 
 # binary ame_rep with symmetric=FALSE, R=2, rvar=TRUE, cvar=TRUE
 fitOrig<-ame_rep(Y,Xdyad,Xnode,Xnode,R=2,
@@ -182,7 +173,6 @@ fitOrig<-ame_rep(Y,Xdyad,Xnode,Xnode,R=2,
 fitList<-ame_repL(yL,xDyadL,xNodeL,xNodeL,R=2,
 	model='bin', 
 	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
-runTests(fitOrig,fitList) # if nothing returned that's good.
 
 # binary ame_rep with symmetric=FALSE, R=2, symmetric=TRUE, rvar=TRUE, cvar=TRUE
 fitOrig<-ame_rep(Y,Xdyad,Xnode,Xnode,R=2,
@@ -191,7 +181,6 @@ fitOrig<-ame_rep(Y,Xdyad,Xnode,Xnode,R=2,
 fitList<-ame_repL(yL,xDyadL,xNodeL,xNodeL,R=2,
 	model='bin', symmetric=TRUE,
 	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
-runTests(fitOrig,fitList) # if nothing returned that's good.
 ##############################
 
 ##############################
@@ -218,7 +207,6 @@ fitOrig<-ame_rep(Y,Xd,Xn,R=1,
 fitList<-ame_repL(yL,xDyadL,xNodeL,R=1,
 	model="ord",symmetric=TRUE,
 	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
-runTests(fitOrig,fitList) # if nothing returned that's good.
 ##############################
 
 ############################################################

@@ -5,9 +5,13 @@
 \title{Generates parameters to aid in Gibbs sampling of regression coefficient
 with independent replicate relational data}
 \usage{
-rbeta_rep_cpp(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, td, to)
+rbeta_rep_cpp(ZT, to, td, Xr, Xc, mX, mXt, XX, XXt)
 }
 \arguments{
+\item{Z.T}{n x n x T array, with the third dimension for replicates.
+Each slice of the array is a (latent) normal relational matrix, with
+multiplicative effects subtracted out}
+
 \item{XrCube}{n x p x T row covariate array generated within ame_repL fn}
 
 \item{XcCube}{n x p x T column covariate array generated within ame_repL fn}
@@ -20,10 +24,6 @@ rbeta_rep_cpp(zCube, XrCube, XcCube, mXCube, mXtCube, xxCube, xxTCube, td, to)
 
 \item{xxTCube}{p x p x T transposed regression sum of squares array generated 
 within ame_repl fn}
-
-\item{Z.T}{n x n x T array, with the third dimension for replicates.
-Each slice of the array is a (latent) normal relational matrix, with
-multiplicative effects subtracted out}
 
 \item{iSe2}{variance matrix}
 }

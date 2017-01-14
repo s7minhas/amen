@@ -40,15 +40,15 @@ arma::vec rmvnorm_cpp(
 //' 
 //' 
 //' @usage rbeta_ab_rep_cpp(Z.T,Sab,rho,X.T,s2=1)
-//' @param Z.T n x n x T array, with the third dimension for replicates.
+//' @param ZT n x n x T array, with the third dimension for replicates.
 //' Each slice of the array is a (latent) normal relational matrix, with
 //' multiplicative effects subtracted out
-//' @param XrCube n x p x T row covariate array generated within ame_repL fn
-//' @param XcCube n x p x T column covariate array generated within ame_repL fn
-//' @param mXCube n^2 x p x T design array generated within ame_repL fn
-//' @param mXtCube n^2 x p x T transposed design array generated within ame_repL fn
-//' @param xxCube p x p x T regression sum of squares array generated within ame_repl fn
-//' @param xxTCube p x p x T transposed regression sum of squares array generated 
+//' @param Xr n x p x T row covariate array generated within ame_repL fn
+//' @param Xc n x p x T column covariate array generated within ame_repL fn
+//' @param mX n^2 x p x T design array generated within ame_repL fn
+//' @param mXt n^2 x p x T transposed design array generated within ame_repL fn
+//' @param XX p x p x T regression sum of squares array generated within ame_repl fn
+//' @param XXt p x p x T transposed regression sum of squares array generated 
 //' within ame_repl fn
 //' @param iSe2 variance matrix
 //' @param Sabs row and column covariance
@@ -63,53 +63,45 @@ arma::vec rmvnorm_cpp(
 // [[Rcpp::export]]
 
 List rbeta_ab_rep_fc_cpp(
-	arma::cube zCube, arma::cube XrCube, arma::cube XcCube, 
-	arma::cube mXCube, arma::cube mXtCube, 
-	arma::cube xxCube, arma::cube xxTCube,
+	arma::cube ZT, arma::cube Xr, arma::cube Xc, 
+	arma::cube mX, arma::cube mXt, 
+	arma::cube XX, arma::cube XXt,
 	arma::mat iSe2, arma::mat Sabs, int k, arma::mat G
 	) {
 
   double td = iSe2(0,0);
   double to = iSe2(0,1);	
 
-  int N = zCube.n_slices;  
-  int n = zCube.n_rows;
-  int p = XrCube.n_cols;
+  const int N = ZT.n_slices;  
+  const int n = ZT.n_rows;
+  const int p = Xr.n_cols;
 
   arma::vec lb = arma::zeros(p);
   arma::mat Qb = arma::zeros(p,p);
   arma::vec ZrT = arma::zeros(n);
   arma::vec ZcT = arma::zeros(n);
   arma::mat XrT = arma::zeros(n,p);
-  arma::mat XcT = arma::zeros(n,p);  
+  arma::mat XcT = arma::zeros(n,p);
 
   for(int t=0 ; t < N ; ++t){
-    arma::mat mXs = td * mXCube.slice(t) + to*mXtCube.slice(t);
-    arma::mat XXs = (pow(to, 2)+pow(td, 2))*xxCube.slice(t) + 2*to*td*xxTCube.slice(t);
-    arma::mat Zs = td*zCube.slice(t) + to*zCube.slice(t).t();
+    arma::mat Z = ZT.slice(t);
+    arma::mat mXs = td * mX.slice(t) + to * mXt.slice(t);
+    arma::mat XXs = (pow(to,2)+pow(td,2))*XX.slice(t) + 2*to*td*XXt.slice(t);
+    arma::mat Zs = td*Z + to*trans(Z);
+    arma::vec zr = sum(Zs,1); arma::vec zc=trans(sum(Zs,0));
 
-    arma::vec zr(n);
-    for (int i=0 ; i < n ; ++i){
-      zr[i] = arma::sum(zCube.slice(t).row(i));
+    if(p>0){
+      lb = lb + (trans(mXs) * vectorise(Zs));
+      Qb = Qb + XXs + (XX.slice(t)/mXs.n_rows)/ZT.n_slices;
     }
 
-    arma::vec zc(n);
-    for (int j=0 ; j < n ; ++j){
-      zc[j] = arma::sum(zCube.slice(t).col(j));
-    }
+    arma::mat Xsr = td*Xr.slice(t) + to*Xc.slice(t);
+    arma::mat Xsc = td*Xc.slice(t) + to*Xr.slice(t);
 
-    if(p > 0){
-      lb = lb + (mXs.t() * vectorise(Zs));
-      Qb = Qb + XXs + ( xxCube.slice(t)/mXs.n_rows )/N;
-    }
-
-    arma::mat Xsr = td * XrCube.slice(t) + to*XcCube.slice(t);
-    arma::mat Xsc = td * XcCube.slice(t) + to*XrCube.slice(t);
-
-    ZrT = ZrT + zr;
-    ZcT = ZcT + zc;
-    XrT = XrT + Xsr;
-    XcT = XcT + Xsc;
+    ZrT = ZrT+zr;
+    ZcT = ZcT+zc;
+    XrT = XrT+Xsr;
+    XcT = XcT+Xsc;
   }
 
   // dyadic and prior contributions
