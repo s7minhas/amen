@@ -92,7 +92,9 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
            symmetric = FALSE, 
            odmax = NULL,
            seed = 1, nscan = 10000, burn = 500, odens = 25,
-           plot = TRUE, print = FALSE, gof = TRUE, startVals = NULL)
+           plot = TRUE, print = FALSE, gof = TRUE, 
+           startVals = NULL, periodicSave=FALSE, outFile=NULL,
+           savePoint=quantile(burn:nscan, probs=seq(.25,1-.25,.25)))
 {
   #
   if( nscan %% odens !=0  ){ stop('"odens" must be a multiple of "nscan"')}
@@ -221,7 +223,10 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
   have_coda<-suppressWarnings(
                try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
 
-  if(burn!=0){pbBurn <- txtProgressBar(min=1,max=burn,style=3)}
+  if(burn!=0){
+    pbBurn <- txtProgressBar(min=1,max=burn,style=3)
+    cat('\nStarting burn-in period...\n')
+  }
   if(!print){pbMain <- txtProgressBar(min=burn+1,max=nscan+burn,style=3)}
   for (s in 1:(nscan + burn)) 
   { 
@@ -319,7 +324,7 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
     if(burn!=0){setTxtProgressBar(pbBurn,s)}
 
     # store parameter values and monitor the MC
-    if(s==burn+1&!print&burn!=0){cat('\nBurn-in period complete.');close(pbBurn)}
+    if(s==burn+1&!print&burn!=0){cat('\nBurn-in period complete...');close(pbBurn)}
     if(s%%odens==0 & s>burn) 
     { 
       
@@ -411,15 +416,15 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
         }
       } # plot code if applicable
 
-      # # periodic save
-      # if(periodicSave & s %in% savePoint){
-      #   fitTmp <- list(
-      #     BETA=BETA, VC=VC,
-      #     APM=(APS/nrow(VC)),BPM=(BPS/nrow(VC)),
-      #     UVPM=(UVPS/nrow(VC)), 
-      #     )
-      # }
-
+      # periodic save
+      if(periodicSave & s %in% savePoint & !is.null(outFile)){
+        # save startVals for future model runs
+        startVals <- list(Z=Z,beta=beta,a=a,b=b,U=U,V=V,rho=rho,s2=s2,Sab=Sab)
+        fitTmp <- getFitObject( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, EZ=EZ,
+          BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr,
+          startVals=startVals, symmetric=symmetric)
+        save(fitTmp, file=outFile) ; rm(fitTmp)
+      }
     iter<-iter+1
     } # post burn-in
   if(!print){setTxtProgressBar(pbMain,s)}

@@ -1,4 +1,19 @@
-
+#' Get fitted object from MCMC results
+#' 
+#' @param startVals List object that is null or contains 
+#' starting values
+#' @param Y dependent variable in array format
+#' @param model character vector (e.g. 'bin', 'nrm') specifying
+#' model type
+#' @param xP number of exogenous covariates
+#' @param rvar logical indicating whether to include sender random
+#' effects
+#' @param cvar logical indicating whether to include receiver random
+#' effects
+#' @param R Number of dimensions for multiplicative effects
+#' @return List of starting values for MCMC
+#' @author Peter Hoff, Shahryar Minhas
+#' @export getStartVals
 
 getStartVals <- function(startVals, Y, model, xP, rvar, cvar, R){
 
