@@ -114,31 +114,9 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
   N<-length(Y) ; pdLabs <- names(Y) ; Y<-lapply(Y, function(y){diag(y)=NA; return(y)})
 
   # convert into large array format
-  tmp <- array(NA, dim=c(n,n,N),
-    dimnames=list( actorSet, actorSet, names(Y) ) )
-  for(t in 1:N){ tmp[rownames(Y[[t]]),rownames(Y[[t]]),t] <- Y[[t]] }
-  Y <- tmp ; rm(tmp)
-
-  if(!is.null(Xdyad)){
-    tmp <- array(NA, dim=c(n,n,dim(Xdyad[[1]])[3],N),
-      dimnames=list( actorSet, actorSet, dimnames(Xdyad[[1]])[[3]], pdLabs ) )
-    for(t in 1:N){
-      tmp[rownames(Xdyad[[t]]),rownames(Xdyad[[t]]),,t] <- Xdyad[[t]] }
-    Xdyad <- tmp ; rm(tmp) }
-
-  if(!is.null(Xrow)){
-    tmp <- array(NA, dim=c(n, dim(Xrow[[1]])[2], N),
-      dimnames=list( actorSet, colnames(Xrow[[1]]), pdLabs) )
-    for(t in 1:N){
-      tmp[rownames(Xrow[[t]]),,t] <- Xrow[[t]] }
-    Xrow <- tmp ; rm(tmp) }
-
-  if(!is.null(Xcol)){
-    tmp <- array(NA, dim=c(n, dim(Xcol[[1]])[2], N),
-      dimnames=list( actorSet, colnames(Xcol[[1]]), pdLabs) )
-    for(t in 1:N){
-      tmp[rownames(Xcol[[t]]),,t] <- Xcol[[t]] }
-    Xcol <- tmp ; rm(tmp) }
+  arrayObj<-listToArray(actorSet, Y, Xdyad, Xrow, Xcol)
+  Y<-arrayObj$Y ; Xdyad<-arrayObj$Xdyad ; Xrow<-arrayObj$Xrow
+  Xcol<-arrayObj$Xrow ; rm(arrayObj)
 
   # force binary if binary model specified 
   if(is.element(model,c("bin","cbin"))) { Y<-1*(Y>0) } 
@@ -156,51 +134,11 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
   pr<-length(Xrow[,,1])/n
   pc<-length(Xcol[,,1])/n
   pd<-length(Xdyad[,,,1])/n^2
-
-  X<-array(dim=c(n,n,pr+pc+pd+intercept,N)) 
-  for (t in 1:N ){ 
-    Xt<-design_array_listwisedel(Xrow[,,t],Xcol[,,t],Xdyad[,,,t],intercept,n) 
-
-    # re-add intercept if it was removed
-    if(dim(Xt)[3]<dim(X)[3] ){
-      tmp<-array( dim=dim(Xt)+c(0,0,1),
-        dimnames=list(NULL,NULL,c('intercept',dimnames(Xt)[[3]])) ) 
-      tmp[,,1]<-1 ; tmp[,,-1]<-Xt   
-      Xt<-tmp
-    }
-
-    X[,,,t]<-Xt
-  } 
-  if( (pr+pc+pd+intercept)>0 ){
-    dimnames(X) = list(actorSet,actorSet,dimnames(Xt)[[3]],dimnames(Y)[[3]])
-  }
-  dimnames(X)[[4]]<-dimnames(Y)[[3]]
-
-  # add NAs from design array to Y
-  if( (pr + pc + pd) > 0){
-    for(t in 1:N){
-      for(p in 1:dim(X)[3]){
-        # find NAs
-        naMat <- X[,,p,t] ; naMat[!is.na(naMat)] <- 1 ; naMat[is.nan(naMat)] <- NA
-        # add NAs to Y
-        Y[,,t] <- Y[,,t] * naMat
-      }
-    } ; rm(naMat)
-  }
-
-  # turn NAs in design array to zero
-  X[is.na(X)]<-0
-
-  # useful design array transformations to do up front
-  ## these are used in calculation of rbeta
-  Xlist <- lapply(1:N, function(t){ array(X[,,,t], dim=dim(X)[1:3], dimnames=dimnames(X)[1:3]) })
-  XrLong <- apply(X, c(1,3,4), sum)                 # row sum
-  XcLong <- apply(X, c(2,3,4), sum)                 # col sum
-  mXLong <- apply(X, c(3,4), c)                     # design matrix
-  mXtLong <- apply(aperm(X, c(2,1,3,4)), c(3,4), c) # dyad-transposed design matrix
-  # regression sums of squares
-  xxLong <- array(apply(mXLong, 3, function(x){ t(x)%*%x }), dim=c(dim(X)[3],dim(X)[3],N))
-  xxTLong <- array(unlist(lapply(1:N, function(t){ t(mXLong[,,t]) %*% mXtLong[,,t] })), dim=dim(xxLong))
+  designObj <- getDesignRep(Xdyad,Xrow,Xcol,intercept,n,N,pr,pc,pd)
+  X<-designObj$X ; Xlist<-designObj$Xlist ; XrLong<-designObj$XrLong
+  XcLong<-designObj$XcLong ; mXLong<-designObj$mXLong
+  mXtLong<-designObj$mXtLong ; xxLong<-designObj$xxLong
+  xxTLong<-designObj$xxTLong ; rm(designObj)
 
   # design matrix warning for rrl
   if( model=="rrl" & any(apply(apply(X,c(1,3),var),2,sum)==0)
@@ -238,78 +176,13 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
     }
   }
     
-  if(is.null(startVals)){
-  # starting Z values
-  Z<-array(dim=dim(Y))
-    for (t in 1:N)
-    {
-      if(model=="nrm"){Z[,,t]<-Y[,,t] }
-      if(model=="ord"){Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),ncol(Y[,,t]))} 
-      if(model=="rrl")
-      {  
-        Z[,,t]<-matrix(t(apply(Y[,,t],1,zscores)),nrow(Y[,,t]),ncol(Y[,,t])) 
-      }  
-    if(model=="bin" ){
-      Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t]))
-      # zyMax <- max(Z[,,t][Y[,,t]==0],na.rm=TRUE)
-      zyMax <- ifelse( sum(Y[,,t]==0, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==0],na.rm=TRUE), 0)
-      # zyMin <- min(Z[,,t][Y[,,t]==1],na.rm=TRUE)
-      zyMin <- ifelse( sum(Y[,,t]==1, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==1],na.rm=TRUE), 0)
-      z01<-.5*(zyMax+zyMin ) 
-      Z[,,t]<-Z[,,t] - z01
-    } 
-        
-      if(is.element(model,c("cbin","frn")))
-      {
-        Z[,,t]<-Y[,,t]
-        for(i in 1:nrow(Y[,,t]))
-        {
-          yi<-Y[i,,t]
-          zi<-zscores(yi)
-          rnkd<-which( !is.na(yi) & yi>0 ) 
-          if(length(rnkd)>0 && min(zi[rnkd])<0)
-          { 
-            zi[rnkd]<-zi[rnkd] - min(zi[rnkd]) + 1e-3 
-          }
-            
-          if(length(rnkd)<odmax[i]) 
-          {
-            urnkd<-which( !is.na(yi) & yi==0 ) 
-            if(max(zi[urnkd])>0) { zi[urnkd]<-zi[urnkd] - max(zi[urnkd]) -1e-3 }
-          }
-            
-          Z[i,,t]<-zi
-        } 
-      }
-    }
-      
-    # starting values for missing entries  
-    ZA<-Z
-    for (t in 1:N)
-    { 
-      mu<-mean(Z[,,t],na.rm=TRUE)
-      a<-rowMeans(Z[,,t],na.rm=TRUE) ; b<-colMeans(Z[,,t],na.rm=TRUE)
-      # a[is.na(a)] <- mean(a, na.rm=TRUE) ; b[is.na(b)] <- mean(b, na.rm=TRUE)
-      a[is.na(a)] <- 0 ; b[is.na(b)] <- 0
-      ZA[,,t]<-mu + outer(a,b,"+")
-    }
-    Z[is.na(Z)]<-ZA[is.na(Z)] 
-      
-    # other starting values
-    beta<-rep(0,dim(X)[3]) 
-    s2<-1 
-    rho<-0
-    Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
-    U<-V<-matrix(0, nrow(Y[,,1]), R) 
-  } # close of startVals condition    
+  # Get starting values for MCMC
+  startValsObj <- getStartVals(startVals,Y,model,xP=dim(X)[3],rvar,cvar,R)
+  Z<-startValsObj$Z ; beta<-startValsObj$beta ; a<-startValsObj$a
+  b<-startValsObj$b ; U<-startValsObj$U ; V<-startValsObj$V
+  rho<-startValsObj$rho ; s2<-startValsObj$s2 ; Sab<-startValsObj$Sab
 
-  # unpack startVals list if applicable
-  if(!is.null(startVals)){
-    Z<-startVals$Z ; beta<-startVals$beta ; a<-startVals$a ; b<-startVals$b
-    U<-startVals$U ; V<-startVals$V ; rho<-startVals$rho ; s2<-startVals$s2
-    Sab<-startVals$Sab
-  }
-
+  # helpful mcmc params
   symLoopIDs <- lapply(1:(nscan + burn), function(x){ rep(sample(1:nrow(U)),4) })  
   asymLoopIDs <- lapply(1:(nscan + burn), function(x){ sample(1:R) })  
   iter <- 1
@@ -553,65 +426,12 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
   } # end MCMC  
   if(!print){close(pbMain)}
     
-  # output 
-
-  # posterior means 
-  APM<-APS/nrow(VC)
-  BPM<-BPS/nrow(VC)  
-  UVPM<-UVPS/nrow(VC)
-  YPM<-YPS/nrow(VC) 
-  EZ<-array(dim=dim(Y)) 
-  for (t in 1:N)
-  {
-    EZ[,,t]<-Xbeta(array(X[,,,t],dim(X)[1:3]),apply(BETA,2,mean)) + 
-      outer(APM,BPM,"+")+UVPM 
-  }
-
-  names(APM)<-names(BPM)<-rownames(UVPM)<-colnames(UVPM)<-dimnames(Y)[[1]]
-  dimnames(YPM)<-dimnames(EZ)<-dimnames(Y) 
-  rownames(BETA)<-NULL  
-
   # save startVals for future model runs
   startVals <- list( Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
 
-  # asymmetric output
-  if(!symmetric){
-    UDV<-svd(UVPM)
-    U<-UDV$u[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
-    V<-UDV$v[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
-    rownames(U)<-rownames(V)<-dimnames(Y)[[1]]
-
-    # reformat EZ and YPM as list objects
-    EZ <- arrayToList(EZ, actorByYr, pdLabs)
-    YPM <- arrayToList(YPM, actorByYr, pdLabs)
-
-    # create fitted object
-    fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
-                YPM=YPM,GOF=GOF, startVals=startVals) 
-  }
- 
-  # symmetric output
-  if(symmetric){
-    ULUPM<-UVPM 
-    eULU<-eigen(ULUPM) 
-    eR<- which( rank(-abs(eULU$val),ties.method="first") <= R )
-    U<-eULU$vec[,seq(1,R,length=R),drop=FALSE]
-    L<-eULU$val[eR]   
-    rownames(U)<-rownames(ULUPM)<-colnames(ULUPM)<-dimnames(Y)[[1]]
-    for(t in 1:N){ 
-      EZ[,,t]<-.5*(EZ[,,t]+t(EZ[,,t]))
-      YPM[,,t]<-.5*(YPM[,,t]+t(YPM[,,t]))
-    }
-
-    # reformat EZ and YPM as list objects
-    EZ <- arrayToList(EZ, actorByYr, pdLabs)
-    YPM <- arrayToList(YPM, actorByYr, pdLabs)
-
-    # create fitted object
-    fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
-      YPM=YPM,GOF=GOF, startVals=startVals)
-  }
-
-  class(fit) <- "ame"
-  fit
+  # output
+  fit <- getFitObject( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, EZ=EZ, 
+    BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr, 
+    startVals=startVals, symmetric=symmetric)
+  return(fit)
 }

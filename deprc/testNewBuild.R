@@ -75,13 +75,13 @@ if(!is.null(Xdyad)){
 
 set.seed(6886)
 benchmark(
-  fitOrig <- ame_rep(
-    Y, Xdyad, R=2,
-    model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
-    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
-  ),
   fitList <- ame_repL(
     Y=YX_bin_list$Y, Xdyad=YX_bin_list$X, R=2,
+    model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+  ),  
+  fitOrig <- ame_rep(
+    Y, Xdyad, R=2,
     model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
     burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
   ),
