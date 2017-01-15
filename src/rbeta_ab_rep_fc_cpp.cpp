@@ -39,7 +39,6 @@ arma::vec rmvnorm_cpp(
 //' across replicates. 
 //' 
 //' 
-//' @usage rbeta_ab_rep_cpp(Z.T,Sab,rho,X.T,s2=1)
 //' @param ZT n x n x T array, with the third dimension for replicates.
 //' Each slice of the array is a (latent) normal relational matrix, with
 //' multiplicative effects subtracted out
@@ -54,8 +53,6 @@ arma::vec rmvnorm_cpp(
 //' @param Sabs row and column covariance
 //' @param k dimensions for row and column random effects
 //' @param G eigenvalue calcs from Sab
-//' @param e n x k gaussian error matrix
-//' @param colE column sums of e
 //' @return \item{beta}{regression coefficients} \item{a}{additive row effects}
 //' \item{b}{additive column effects}
 //' @author Peter Hoff, Yanjun He, Shahryar Minhas

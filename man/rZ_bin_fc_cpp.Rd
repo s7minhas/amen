@@ -7,11 +7,11 @@
 rZ_bin_fc_cpp(Z, EZ, rho, Y)
 }
 \arguments{
+\item{rho}{dyadic correlation}
+
 \item{Z}{a square matrix, the current value of Z}
 
 \item{EZ}{expected value of Z}
-
-\item{rho}{dyadic correlation}
 
 \item{Y}{square binary relational matrix}
 }

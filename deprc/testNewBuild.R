@@ -2,37 +2,52 @@ rm(list=ls())
 library(amen)
 library(rbenchmark)
 
-# load('~/Dropbox/Research/netsMatter/replications/mansfield_milner_2012/inputData/amenData.rda')
-# set.seed(6886) ; fitOrig <- ame_repL(
-#   Y=yList, Xdyad=xDyadList, Xrow=xNodeList,
-#   model='bin', symmetric=TRUE, R=2, intercept=FALSE,
-#   burn=0, nscan=200, odens=25, seed=6886,
-#   plot=TRUE, print=FALSE, gof=TRUE
-#   )
+############################################################
+# Mansfield milner example
+load('~/Dropbox/Research/netsMatter/replications/mansfield_milner_2012/inputData/amenData.rda')
+set.seed(6886) ; fitOrig <- ame_repL(
+  Y=yList, Xdyad=xDyadList, Xrow=xNodeList,
+  model='bin', symmetric=TRUE, R=2, intercept=FALSE,
+  burn=0, nscan=200, odens=25, seed=6886,
+  plot=TRUE, print=FALSE, gof=TRUE
+  )
+############################################################
 
-# ############################################################
-# ############################################################
-# ## Running with changing actor composition
+############################################################
+## Running with changing actor composition
+# load data
+data(YX_bin_long) ; data(YX_bin_list) # same as other but replicates are stored in list
 
-# # load data
-# data(YX_bin_long) ; data(YX_bin_list) # same as other but replicates are stored in list
+# randomly delete some nodes
+yL = YX_bin_list$Y
+xDyad = YX_bin_list$X
+actors = rownames(yL[[1]])
 
-# # randomly delete some nodes
-# yL = YX_bin_list$Y
-# xDyad = YX_bin_list$X
-# actors = rownames(yL[[1]])
+set.seed(6886) ; toRem = sample(1:length(actors), 5)
+yL[[1]] = yL[[1]][-toRem,-toRem]
+xDyad[[1]] = xDyad[[1]][-toRem,-toRem,]
 
-# set.seed(6886) ; toRem = sample(1:length(actors), 5)
-# yL[[1]] = yL[[1]][-toRem,-toRem]
-# xDyad[[1]] = xDyad[[1]][-toRem,-toRem,]
+# run mod
+fitList<-ame_repL(yL,xDyad,R=2,
+	model='bin',
+	burn=10,nscan=40,odens=1,plot=FALSE, print=FALSE)
+############################################################
 
-# # run mod
-# fitList<-ame_repL(yL,xDyad,R=2,
-# 	model='bin',
-# 	burn=10,nscan=40,odens=1,plot=FALSE, print=FALSE)
-# fitList$BETA
-# ############################################################
-# ############################################################
+##############################
+# fn to compare mod results
+applyR = function(...){round(apply(...),4)}
+meanR = function(...){round(mean(...),4)}
+compareResults <- function(mod1, mod2, symm){
+  beta = cbind(applyR(mod1$BETA, 2, mean), applyR(mod2$BETA, 2, mean))
+  vc = cbind(applyR(mod1$VC, 2, mean), applyR(mod2$VC, 2, mean))
+  apm = c(meanR(mod1$APM), meanR(mod2$APM))
+  if(!symm){bpm = c(meanR(mod1$BPM), meanR(mod2$BPM))}
+  u = cbind(applyR(mod1$U, 2, mean), applyR(mod2$U, 2, mean))
+  if(!symm){v = cbind(applyR(mod1$V, 2, mean), applyR(mod2$V, 2, mean))}
+  if(symm){return(list(beta=beta,vc=vc,apm=apm,u=u))}
+  if(!symm){return(list(beta=beta,vc=vc,apm=apm,bpm=bpm,u=u,v=v))}
+}
+##############################
 
 ##############################
 # load data
@@ -58,78 +73,37 @@ if(!is.null(Xdyad)){
     tmp[rownames(Xdyad[[t]]),rownames(Xdyad[[t]]),,t] <- Xdyad[[t]] }
   Xdyad <- tmp ; rm(tmp) }
 
-set.seed(6886) ; fitOrig<-ame_rep(
-  Y, Xdyad, R=2,
-  model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
-  burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE)
-
-set.seed(6886) ; fitOrig2<-ame_repL(
-  Y=YX_bin_list$Y, Xdyad=YX_bin_list$X, R=2,
-  model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
-  burn=1000,nscan=2000,odens=25,plot=TRUE, print=FALSE)
-
-apply(fitOrig$BETA, 2, mean)
-apply(fitOrig2$BETA, 2, mean)
-
-apply(fitOrig$VC, 2,mean)
-apply(fitOrig2$VC, 2,mean)
-
-mean(fitOrig$APM)
-mean(fitOrig2$APM)
-
-mean(fitOrig$BPM)
-mean(fitOrig2$BPM)
-
-apply(fitOrig$U, 2, mean)
-apply(fitOrig2$U, 2, mean)
-
-apply(fitOrig$V, 2, mean)
-apply(fitOrig2$V, 2, mean)
-
+set.seed(6886)
 benchmark(
-	ame_rep(
-	  Y, Xdyad, R=2,
-	  model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
-	  burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
-		),
-	ame_repL(
-	  Y=YX_bin_list$Y, Xdyad=YX_bin_list$X, R=2,
-	  model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
-	  burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
-	  ),
-	replications=5
-	)
+  fitOrig <- ame_rep(
+    Y, Xdyad, R=2,
+    model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+  ),
+  fitList <- ame_repL(
+    Y=YX_bin_list$Y, Xdyad=YX_bin_list$X, R=2,
+    model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+  ),
+  replications=1
+)
+compareResults(fitOrig, fitList, FALSE)
 
-# 1     ame_rep(YX_bin_long$Y, YX_bin_long$X, R = 2, model = "nrm", seed = 6886, symmetric = FALSE, burn = 5000, nscan = 5000, odens = 1, plot = FALSE, print = FALSE)
-# 2 ame_repTest(YX_bin_long$Y, YX_bin_long$X, R = 2, model = "nrm", seed = 6886, symmetric = FALSE, burn = 5000, nscan = 5000, odens = 1, plot = FALSE, print = FALSE)
-# replications  elapsed relative user.self sys.self
-# 1            3 1194.408    2.251  2069.008 1612.599
-# 2            3  530.648    1.000   961.158  712.978
-# user.child sys.child
-# 1          0         0
-# 2          0         0
-
-fitList<-ame_repL(YX_bin_list$Y,YX_bin_list$X,R=0,
-	model='bin',
-	burn=5,nscan=100,odens=1,plot=FALSE, print=FALSE)
-apply(fitOrig$BETA, 2, mean)
-apply(fitList$BETA, 2, mean)
-
-# binary ame_rep with symmetric=FALSE, R=2, rvar=TRUE, cvar=TRUE
-fitOrig<-ame_rep(YX_bin_long$Y,YX_bin_long$X,R=2,
-	model='bin',
-	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
-fitList<-ame_repL(YX_bin_list$Y,YX_bin_list$X,R=2,
-	model='bin', 
-	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
-
-# binary ame_rep with symmetric=TRUE, R=2, rvar=TRUE, cvar=TRUE
-fitOrig<-ame_rep(YX_bin_long$Y,YX_bin_long$X,R=2,
-	model='bin', symmetric=TRUE,
-	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
-fitList<-ame_repL(YX_bin_list$Y,YX_bin_list$X,R=2,
-	model='bin', symmetric=TRUE,
-	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
+set.seed(6886)
+benchmark(
+  fitOrig <- ame_rep(
+    Y, Xdyad, R=2,
+    model='nrm', seed=6886,symmetric=TRUE,intercept=TRUE,
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+  ),
+  fitList <- ame_repL(
+    Y=YX_bin_list$Y, Xdyad=YX_bin_list$X, R=2,
+    model='nrm', seed=6886,symmetric=TRUE,intercept=TRUE,
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+  ),
+  replications=1
+)
+compareResults(fitOrig, fitList, TRUE)
 ##############################
 
 ##############################
@@ -158,29 +132,44 @@ yL <- lapply(1:t, function(x){ y=Y[,,x] ; rownames(y)=colnames(y)=actors ; y})
 xNodeL <- lapply(1:t, function(x){ xnode=Xnode[,,x] ; rownames(xnode)=actors ; xnode })
 xDyadL <- lapply(1:t, function(x){ xdyad=Xdyad[,,,x] ; rownames(xdyad)=colnames(xdyad)=actors ; xdyad})
 
-# binary ame_rep with symmetric=FALSE, R=0, rvar=TRUE, cvar=TRUE
-fitOrig<-ame_rep(Y,Xdyad,Xnode,Xnode,R=0,
-	model='bin', 
-	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
-fitList<-ame_repL(yL,xDyadL,xNodeL,xNodeL,R=0,
-	model='bin', 
-	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
+benchmark(
+  fitOrig<-ame_rep(
+    Y,Xdyad,Xnode,Xnode,R=0, model='bin',
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+    ),
+  fitList<-ame_repL(
+    yL,xDyadL,xNodeL,xNodeL,R=0, model='bin',
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+    ),
+  replications=1
+)
+compareResults(fitOrig, fitList, FALSE)
 
-# binary ame_rep with symmetric=FALSE, R=2, rvar=TRUE, cvar=TRUE
-fitOrig<-ame_rep(Y,Xdyad,Xnode,Xnode,R=2,
-	model='bin', 
-	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
-fitList<-ame_repL(yL,xDyadL,xNodeL,xNodeL,R=2,
-	model='bin', 
-	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
+benchmark(
+  fitOrig<-ame_rep(
+    Y,Xdyad,Xnode,Xnode,R=2, model='bin',
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+    ),
+  fitList<-ame_repL(
+    yL,xDyadL,xNodeL,xNodeL,R=2, model='bin',
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+    ),
+  replications=1
+)
+compareResults(fitOrig, fitList, FALSE)
 
-# binary ame_rep with symmetric=FALSE, R=2, symmetric=TRUE, rvar=TRUE, cvar=TRUE
-fitOrig<-ame_rep(Y,Xdyad,Xnode,Xnode,R=2,
-	model='bin', symmetric=TRUE,
-	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
-fitList<-ame_repL(yL,xDyadL,xNodeL,xNodeL,R=2,
-	model='bin', symmetric=TRUE,
-	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
+benchmark(
+  fitOrig<-ame_rep(
+    Y,Xdyad,Xnode,Xnode,R=2,model='bin', symmetric=TRUE,
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+    ),
+  fitList<-ame_repL(
+    yL,xDyadL,xNodeL,xNodeL,R=2,model='bin', symmetric=TRUE,
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+    ),
+  replications=1
+)
+compareResults(fitOrig, fitList, TRUE)
 ##############################
 
 ##############################
@@ -201,13 +190,16 @@ xNodeL <- lapply(1:t, function(x){ Xn[,,x] })
 xDyadL <- lapply(1:t, function(x){ array(Xd[,,,x],dim=c(n,n,1),dimnames=list(rownames(Y),rownames(Y),'ldist')) })
 
 # ordinal ame_rep with symmetric=TRUE, R=1
-fitOrig<-ame_rep(Y,Xd,Xn,R=1,
-	model="ord",symmetric=TRUE,
-	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
-fitList<-ame_repL(yL,xDyadL,xNodeL,R=1,
-	model="ord",symmetric=TRUE,
-	burn=5,nscan=5,odens=1,plot=FALSE, print=FALSE)
+benchmark(
+  fitOrig<-ame_rep(
+    Y,Xd,Xn,R=1, model="ord",symmetric=TRUE,
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+    ),
+  fitList<-ame_repL(
+    yL,xDyadL,xNodeL,R=1, model="ord",symmetric=TRUE,
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+    ),
+  replications=1
+)
+compareResults(fitOrig, fitList, TRUE)
 ##############################
-
-############################################################
-############################################################

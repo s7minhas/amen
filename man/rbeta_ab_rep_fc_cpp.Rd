@@ -5,7 +5,7 @@
 \title{Gibbs sampling of additive row and column effects and regression coefficient
 with independent replicate relational data}
 \usage{
-rbeta_ab_rep_cpp(Z.T,Sab,rho,X.T,s2=1)
+rbeta_ab_rep_fc_cpp(ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G)
 }
 \arguments{
 \item{ZT}{n x n x T array, with the third dimension for replicates.
@@ -32,10 +32,6 @@ within ame_repl fn}
 \item{k}{dimensions for row and column random effects}
 
 \item{G}{eigenvalue calcs from Sab}
-
-\item{e}{n x k gaussian error matrix}
-
-\item{colE}{column sums of e}
 }
 \value{
 \item{beta}{regression coefficients} \item{a}{additive row effects}

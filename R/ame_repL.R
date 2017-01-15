@@ -355,36 +355,26 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
    
     # update Z
     E.nrm<-array(dim=dim(Z))
-    EZt <- get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
+    EZ <- get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
     for(t in 1:N ){
-      EZ<-EZt[,,t]
       if(model=="nrm")
       { 
-        Z[,,t]<-rZ_nrm_fc(Z[,,t],EZ,rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ
+        Z[,,t]<-rZ_nrm_fc(Z[,,t],EZ[,,t],rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ[,,t]
       }
-      if(model=="bin"){ Z[,,t]<-rZ_bin_fc(Z[,,t],EZ,rho,Y[,,t]) }
-      if(model=="ord"){ Z[,,t]<-rZ_ord_fc(Z[,,t],EZ,rho,Y[,,t]) }
-      if(model=="cbin"){Z[,,t]<-rZ_cbin_fc(Z[,,t],EZ,rho,Y[,,t],odmax,odobs)}
+      if(model=="bin"){ Z[,,t]<-rZ_bin_fc(Z[,,t],EZ[,,t],rho,Y[,,t]) }
+      if(model=="ord"){ Z[,,t]<-rZ_ord_fc(Z[,,t],EZ[,,t],rho,Y[,,t]) }
+      if(model=="cbin"){Z[,,t]<-rZ_cbin_fc(Z[,,t],EZ[,,t],rho,Y[,,t],odmax,odobs)}
       if(model=="frn")
       { 
-        Z[,,t]<-rZ_frn_fc(Z[,,t],EZ,rho,Y[,,t],YL[[t]],odmax,odobs)
+        Z[,,t]<-rZ_frn_fc(Z[,,t],EZ[,,t],rho,Y[,,t],YL[[t]],odmax,odobs)
       }
-      if(model=="rrl"){ Z[,,t]<-rZ_rrl_fc(Z[,,t],EZ,rho,Y[,,t],YL[[t]]) } 
+      if(model=="rrl"){ Z[,,t]<-rZ_rrl_fc(Z[,,t],EZ[,,t],rho,Y[,,t],YL[[t]]) } 
     }
 
     # update s2
     if (model=="nrm"){ s2<-rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2))) }
       
-    # # update beta, a b
-    # betaABCalc <- rbetaCPP_ab_rep_fc(
-    #   Z.T=sweep(Z,c(1,2),U%*%t(V)),Sab=Sab,rho=rho,s2=s2,
-    #   XrLong=XrLong, XcLong=XcLong, mXLong=mXLong, 
-    #   mXtLong=mXtLong, xxLong=xxLong, xxTLong=xxTLong
-    #   )
-    # beta <- betaABCalc$beta
-    # a <- betaABCalc$a * rvar
-    # b <- betaABCalc$b * cvar
-    # if(symmetric){ a<-b<-(a+b)/2 }
+    # update beta, a b
     iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
     tmp<-eigen(Sabs) ; k<-sum(zapsmall(tmp$val)>0 )
     G<-tmp$vec[,1:k] %*% sqrt(diag(tmp$val[1:k],nrow=k))
@@ -455,12 +445,12 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
     # burn-in countdown
     if(burn!=0){setTxtProgressBar(pbBurn,s)}
 
-    # save parameter values and monitor the MC
+    # store parameter values and monitor the MC
     if(s==burn+1&!print&burn!=0){cat('\nBurn-in period complete.');close(pbBurn)}
     if(s%%odens==0 & s>burn) 
     { 
       
-      # save BETA and VC - symmetric case 
+      # store BETA and VC - symmetric case 
       if(symmetric){
         br<-beta[rb] ; bc<-beta[cb] ; bn<-(br+bc)/2
         sbeta<-c(beta[1*intercept],bn,beta[-c(1*intercept,rb,cb)] )
@@ -468,7 +458,7 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
         VC[iter,]<-c(Sab[1,1],s2)
       }
     
-      # save BETA and VC - asymmetric case 
+      # store BETA and VC - asymmetric case 
       if(!symmetric){
         BETA[iter,]<-beta
         VC[iter,]<- c(Sab[upper.tri(Sab, diag = T)], rho,s2)
@@ -497,7 +487,6 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
         {
           Yst<-Ys[,,t] ; Yst[lower.tri(Yst)]<-0 ; Ys[,,t]<-Yst+t(Yst)
         }
-
       }
 
       # update posterior sum
@@ -548,6 +537,16 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
           }
         }
       } # plot code if applicable
+
+      # # periodic save
+      # if(periodicSave & s %in% savePoint){
+      #   fitTmp <- list(
+      #     BETA=BETA, VC=VC,
+      #     APM=(APS/nrow(VC)),BPM=(BPS/nrow(VC)),
+      #     UVPM=(UVPS/nrow(VC)), 
+      #     )
+      # }
+
     iter<-iter+1
     } # post burn-in
   if(!print){setTxtProgressBar(pbMain,s)}
@@ -583,17 +582,8 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
     rownames(U)<-rownames(V)<-dimnames(Y)[[1]]
 
     # reformat EZ and YPM as list objects
-    EZ <- lapply(1:dim(EZ)[3], function(t){
-      actorT <- actorByYr[[t]]
-      ez <- EZ[actorT,actorT,t]
-      diag(ez) <- NA
-      return( ez ) }) ; names(EZ) <- pdLabs
-
-    YPM <- lapply(1:dim(YPM)[3], function(t){
-      actorT <- actorByYr[[t]]
-      ypm <- YPM[actorT,actorT,t]
-      diag(ypm) <- NA
-      return( ypm ) }) ; names(YPM) <- pdLabs    
+    EZ <- arrayToList(EZ, actorByYr, pdLabs)
+    YPM <- arrayToList(YPM, actorByYr, pdLabs)
 
     # create fitted object
     fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
@@ -614,17 +604,8 @@ ame_repL <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
     }
 
     # reformat EZ and YPM as list objects
-    EZ <- lapply(1:dim(EZ)[3], function(t){
-      actorT <- actorByYr[[t]]
-      ez <- EZ[actorT,actorT,t]
-      diag(ez) <- NA
-      return( ez ) }) ; names(EZ) <- pdLabs
-
-    YPM <- lapply(1:dim(YPM)[3], function(t){
-      actorT <- actorByYr[[t]]
-      ypm <- YPM[actorT,actorT,t]
-      diag(ypm) <- NA
-      return( ypm ) }) ; names(YPM) <- pdLabs    
+    EZ <- arrayToList(EZ, actorByYr, pdLabs)
+    YPM <- arrayToList(YPM, actorByYr, pdLabs)
 
     # create fitted object
     fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,

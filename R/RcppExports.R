@@ -21,24 +21,6 @@ get_EZ_cpp <- function(Xlist, beta, ab, U, V) {
     .Call('amen_get_EZ_cpp', PACKAGE = 'amen', Xlist, beta, ab, U, V)
 }
 
-#' Simulate Z based on a probit model
-#' 
-#' Simulates a random latent matrix Z given its expectation, dyadic correlation
-#' and a binary relational matrix Y
-#' 
-#' 
-#' @usage rZ_bin_fc_cpp(Z, EZ, rho, Y)
-#' @param Z a square matrix, the current value of Z
-#' @param EZ expected value of Z
-#' @param rho dyadic correlation
-#' @param Y square binary relational matrix
-#' @return a square matrix , the new value of Z
-#' @author Peter Hoff, Shahryar Minhas
-#' @export rZ_bin_fc_cpp
-rZ_bin_fc_cpp <- function(Z, EZ, rho, Y) {
-    .Call('amen_rZ_bin_fc_cpp', PACKAGE = 'amen', Z, EZ, rho, Y)
-}
-
 #' Gibbs sampling of additive row and column effects and regression coefficient
 #' with independent replicate relational data
 #' 
@@ -47,7 +29,6 @@ rZ_bin_fc_cpp <- function(Z, EZ, rho, Y) {
 #' across replicates. 
 #' 
 #' 
-#' @usage rbeta_ab_rep_cpp(Z.T,Sab,rho,X.T,s2=1)
 #' @param ZT n x n x T array, with the third dimension for replicates.
 #' Each slice of the array is a (latent) normal relational matrix, with
 #' multiplicative effects subtracted out
@@ -62,36 +43,12 @@ rZ_bin_fc_cpp <- function(Z, EZ, rho, Y) {
 #' @param Sabs row and column covariance
 #' @param k dimensions for row and column random effects
 #' @param G eigenvalue calcs from Sab
-#' @param e n x k gaussian error matrix
-#' @param colE column sums of e
 #' @return \item{beta}{regression coefficients} \item{a}{additive row effects}
 #' \item{b}{additive column effects}
 #' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @export rbeta_ab_rep_fc_cpp
 rbeta_ab_rep_fc_cpp <- function(ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G) {
     .Call('amen_rbeta_ab_rep_fc_cpp', PACKAGE = 'amen', ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G)
-}
-
-#' Generates parameters to aid in Gibbs sampling of regression coefficient
-#' with independent replicate relational data
-#' 
-#' @param Z.T n x n x T array, with the third dimension for replicates.
-#' Each slice of the array is a (latent) normal relational matrix, with
-#' multiplicative effects subtracted out
-#' @param XrCube n x p x T row covariate array generated within ame_repL fn
-#' @param XcCube n x p x T column covariate array generated within ame_repL fn
-#' @param mXCube n^2 x p x T design array generated within ame_repL fn
-#' @param mXtCube n^2 x p x T transposed design array generated within ame_repL fn
-#' @param xxCube p x p x T regression sum of squares array generated within ame_repl fn
-#' @param xxTCube p x p x T transposed regression sum of squares array generated 
-#' within ame_repl fn
-#' @param iSe2 variance matrix
-#' @return list of parameters to feed into gibbs sampling of covariate,
-#' a random effects, and b random effects
-#' @author Shahryar Minhas
-#' @export rbeta_rep_cpp
-rbeta_rep_cpp <- function(ZT, to, td, Xr, Xc, mX, mXt, XX, XXt) {
-    .Call('amen_rbeta_rep_cpp', PACKAGE = 'amen', ZT, to, td, Xr, Xc, mX, mXt, XX, XXt)
 }
 
 #' Metropolis update for dyadic correlation with independent replicate data
@@ -206,5 +163,23 @@ rUV_rep_fc_cpp <- function(ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs)
 #' @export rUV_sym_fc_cpp
 rUV_sym_fc_cpp <- function(E, U, V, s2, shrink, uLoopIDs) {
     .Call('amen_rUV_sym_fc_cpp', PACKAGE = 'amen', E, U, V, s2, shrink, uLoopIDs)
+}
+
+#' Simulate Z based on a probit model
+#' 
+#' Simulates a random latent matrix Z given its expectation, dyadic correlation
+#' and a binary relational matrix Y
+#' 
+#' 
+#' @usage rZ_bin_fc_cpp(Z, EZ, rho, Y)
+#' @param Z a square matrix, the current value of Z
+#' @param EZ expected value of Z
+#' @param rho dyadic correlation
+#' @param Y square binary relational matrix
+#' @return a square matrix , the new value of Z
+#' @author Peter Hoff, Shahryar Minhas
+#' @export rZ_bin_fc_cpp
+rZ_bin_fc_cpp <- function(ZT, EZT, rho, YT) {
+    .Call('amen_rZ_bin_fc_cpp', PACKAGE = 'amen', ZT, EZT, rho, YT)
 }
 
