@@ -61,8 +61,8 @@
 #' @param startVals List from previous model run containing parameter
 #' @param periodicSave logical: indicating whether to periodically save
 #' MCMC results
-#' @param savePoint numeric vector indicating points in MCMC at which
-#' to save. Values must each be greater than burn period.
+#' @param savePoint quantile interval indicating when to save during post
+#' burn-in phase.
 #' @param outFile character vector indicating name and path in which
 #' file should be stored if periodicSave is selected. For example,
 #' on an Apple OS outFile="~/Desktop/ameFit.rda".
@@ -102,7 +102,7 @@ ame_repL <- function(
   seed = 1, nscan = 10000, burn = 500, odens = 25,
   plot = TRUE, print = FALSE, gof = TRUE, 
   startVals = NULL, periodicSave=FALSE, outFile=NULL,
-  savePoint=round(quantile(burn:(nscan+burn), probs=seq(.25,1-.25,.25)))
+  savePoint=0.25
   )
 {
   #
@@ -117,6 +117,10 @@ ame_repL <- function(
 
   # reset odmax param
   odmax <- rep( max( unlist( lapply(Y, function(y){ apply(y>0, 1, sum, na.rm=TRUE)  }) ) ), n )
+
+  # calc savePoints
+  savePoints <- (burn:(nscan+burn))[(burn:(nscan+burn)) %% odens==0]
+  savePoints <- savePoints[round(quantile(1:length(savePoints), probs=seq(.25,1,.25)))]
 
   # check formatting of input objects
   checkFormat(Y=Y, Xdyad=Xdyad, Xrow=Xrow, Xcol=Xcol)
@@ -410,7 +414,7 @@ ame_repL <- function(
       }
 
       # periodic save
-      if(periodicSave & s %in% savePoint & !is.null(outFile)){
+      if(periodicSave & s %in% savePoints & !is.null(outFile)){
         # save startVals for future model runs
         startVals <- list(Z=Z,beta=beta,a=a,b=b,U=U,V=V,rho=rho,s2=s2,Sab=Sab)
         fit <- getFitObject( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, 

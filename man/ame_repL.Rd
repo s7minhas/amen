@@ -67,8 +67,8 @@ file should be stored if periodicSave is selected. For example,
 on an Apple OS outFile="~/Desktop/ameFit.rda".
 starting values for new MCMC}
 
-\item{savePoint}{numeric vector indicating points in MCMC at which
-to save. Values must each be greater than burn period.}
+\item{savePoint}{quantile interval indicating when to save during post
+burn-in phase.}
 }
 \value{
 \item{BETA}{posterior samples of regression coefficients}
