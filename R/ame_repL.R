@@ -102,7 +102,7 @@ ame_repL <- function(
   seed = 1, nscan = 10000, burn = 500, odens = 25,
   plot = TRUE, print = FALSE, gof = TRUE, 
   startVals = NULL, periodicSave=FALSE, outFile=NULL,
-  savePoint=quantile(burn:nscan, probs=seq(.25,1-.25,.25))
+  savePoint=round(quantile(burn:(nscan+burn), probs=seq(.25,1-.25,.25)))
   )
 {
   #
