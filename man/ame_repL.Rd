@@ -57,8 +57,18 @@ models}
 
 \item{gof}{logical: calculate goodness of fit statistics?}
 
-\item{startVals}{List from previous model run containing parameter
+\item{startVals}{List from previous model run containing parameter}
+
+\item{periodicSave}{logical: indicating whether to periodically save
+MCMC results}
+
+\item{outFile}{character vector indicating name and path in which
+file should be stored if periodicSave is selected. For example,
+on an Apple OS outFile="~/Desktop/ameFit.rda".
 starting values for new MCMC}
+
+\item{savePoint}{numeric vector indicating points in MCMC at which
+to save. Values must each be greater than burn period.}
 }
 \value{
 \item{BETA}{posterior samples of regression coefficients}

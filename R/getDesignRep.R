@@ -1,9 +1,11 @@
 #' Create design array for replicate data
 #' 
 #' @usage getDesignRep(Xdyad, Xrow, Xcol, intercept, n, N, pr, pc, pd)
+#' @param Y dependent variable in array format
 #' @param Xdyad dyadic covariates in array format
 #' @param Xrow sender covariates in array format
 #' @param Xcol receiver covariates in array format
+#' @param actorSet vector of actors
 #' @param intercept logical indicating whether to include intercept
 #' @param n number of actors
 #' @param N number of replicates
@@ -15,8 +17,7 @@
 #' 
 #' @export getDesignRep
 
-getDesignRep <- function(Xdyad, Xrow, Xcol, intercept, n, N, pr, pc, pd){
-
+getDesignRep <- function(Y=Y, Xdyad, Xrow, Xcol, actorSet, intercept, n, N, pr, pc, pd){
 
   # construct design array
   X<-array(dim=c(n,n,pr+pc+pd+intercept,N)) 
@@ -60,13 +61,15 @@ getDesignRep <- function(Xdyad, Xrow, Xcol, intercept, n, N, pr, pc, pd){
   XcLong <- apply(X, c(2,3,4), sum)                 # col sum
   mXLong <- apply(X, c(3,4), c)                     # design matrix
   mXtLong <- apply(aperm(X, c(2,1,3,4)), c(3,4), c) # dyad-transposed design matrix
-  # regression sums of squares
-  xxLong <- array(apply(mXLong, 3, function(x){ t(x)%*%x }), dim=c(dim(X)[3],dim(X)[3],N))
-  xxTLong <- array(unlist(lapply(1:N, function(t){ t(mXLong[,,t]) %*% mXtLong[,,t] })), dim=dim(xxLong))
+    # regression sums of squares
+  if( (pr+pc+pd+intercept)>0 ){
+    xxLong <- array(apply(mXLong, 3, function(x){ t(x)%*%x }), dim=c(dim(X)[3],dim(X)[3],N))
+    xxTLong <- array(unlist(lapply(1:N, function(t){ t(mXLong[,,t]) %*% mXtLong[,,t] })), dim=dim(xxLong))
+  } else { xxLong<-NULL ; xxTLong<-NULL  }
 
   return(
     list(
-      X=X, Xlist=Xlist, XrLong=XrLong, XcLong=XcLong,
+      Y=Y, X=X, Xlist=Xlist, XrLong=XrLong, XcLong=XcLong,
       mXLong=mXLong, mXtLong=mXtLong, xxLong=xxLong, xxTLong=xxTLong
       )
     )

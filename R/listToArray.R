@@ -16,6 +16,7 @@ listToArray <- function(actors, Y, Xdyad, Xrow, Xcol){
   # dims
   N <- length(Y)
   n <- length(actors)
+  pdLabs <- names(Y)
 
   # convert into large array format
   tmp <- array(NA, dim=c(n,n,N),

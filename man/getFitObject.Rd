@@ -4,8 +4,8 @@
 \alias{getFitObject}
 \title{Get fitted object from MCMC results}
 \usage{
-getFitObject(APS, BPS, UVPS, YPS, EZ, BETA, VC, GOF, Xlist, actorByYr,
-  startVals, symmetric)
+getFitObject(APS, BPS, UVPS, YPS, BETA, VC, GOF, Xlist, actorByYr, startVals,
+  symmetric)
 }
 \arguments{
 \item{APS}{summed additive sender random effects}
@@ -14,9 +14,7 @@ getFitObject(APS, BPS, UVPS, YPS, EZ, BETA, VC, GOF, Xlist, actorByYr,
 
 \item{UVPS}{summed multiplicative random effects}
 
-\item{YPS}{summed Y posterior predictive values}
-
-\item{EZ}{Predicted Y values}
+\item{YPS}{summed Y posterior predictive values in list format}
 
 \item{BETA}{Matrix of draws for regression coefficient estimates}
 

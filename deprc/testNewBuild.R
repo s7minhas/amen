@@ -5,11 +5,12 @@ library(rbenchmark)
 ############################################################
 # Mansfield milner example
 load('~/Dropbox/Research/netsMatter/replications/mansfield_milner_2012/inputData/amenData.rda')
-set.seed(6886) ; fitOrig <- ame_repL(
+fitList <- ame_repL(
   Y=yList, Xdyad=xDyadList, Xrow=xNodeList,
   model='bin', symmetric=TRUE, R=2, intercept=FALSE,
-  burn=0, nscan=200, odens=25, seed=6886,
-  plot=TRUE, print=FALSE, gof=TRUE
+  burn=10000, nscan=5000, odens=25, seed=6886,
+  plot=TRUE, print=FALSE, gof=TRUE, periodicSave = TRUE,
+  outFile = '~/Desktop/tmp.rda'
   )
 ############################################################
 
@@ -29,8 +30,8 @@ xDyad[[1]] = xDyad[[1]][-toRem,-toRem,]
 
 # run mod
 fitList<-ame_repL(yL,xDyad,R=2,
-	model='bin',
-	burn=10,nscan=40,odens=1,plot=FALSE, print=FALSE)
+	model='nrm',symmetric=FALSE,
+	burn=2000,nscan=1000,odens=25,plot=TRUE, print=FALSE,gof=TRUE)
 ############################################################
 
 ##############################
@@ -104,6 +105,22 @@ benchmark(
   replications=1
 )
 compareResults(fitOrig, fitList, TRUE)
+
+set.seed(6886)
+benchmark(
+  fitList <- ame_repL(
+    Y=YX_bin_list$Y, R=2,
+    model='nrm', seed=6886,symmetric=FALSE,intercept=FALSE,
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+  ),  
+  fitOrig <- ame_rep(
+    Y, R=2,
+    model='nrm', seed=6886,symmetric=FALSE,intercept=FALSE,
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+  ),
+  replications=1
+)
+compareResults(fitOrig, fitList, FALSE)
 ##############################
 
 ##############################
@@ -199,6 +216,19 @@ benchmark(
     yL,xDyadL,xNodeL,R=1, model="ord",symmetric=TRUE,
     burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
     ),
+  replications=1
+)
+compareResults(fitOrig, fitList, TRUE)
+
+benchmark(
+  fitList<-ame_repL(
+    yL,R=1, model="ord",symmetric=TRUE,
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+  ),  
+  fitOrig<-ame_rep(
+    Y,R=1, model="ord",symmetric=TRUE,
+    burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
+  ),
   replications=1
 )
 compareResults(fitOrig, fitList, TRUE)

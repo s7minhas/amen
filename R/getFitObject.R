@@ -3,8 +3,7 @@
 #' @param APS summed additive sender random effects
 #' @param BPS summed additive sender random effects
 #' @param UVPS summed multiplicative random effects
-#' @param YPS summed Y posterior predictive values
-#' @param EZ Predicted Y values
+#' @param YPS summed Y posterior predictive values in list format
 #' @param BETA Matrix of draws for regression coefficient estimates
 #' @param VC Matrix of draws for variance estimates
 #' @param GOF Matrix of draws for goodness of fit calculations
@@ -16,27 +15,29 @@
 #' @author Peter Hoff, Shahryar Minhas
 #' @export getFitObject
 getFitObject <- function(
-	APS, BPS, UVPS, YPS, EZ,
+	APS, BPS, UVPS, YPS, 
 	BETA, VC, GOF,
 	Xlist, actorByYr, startVals,
 	symmetric
 	){
 
 	# some labels and dims
-	actors <- dimnames(YPS)[[1]]
-	pdLabs <- dimnames(YPS)[[3]]
+	actors <- names(APS)
+	pdLabs <- names(YPS)
 	R <- ncol(startVals$U)
+	N <- length(YPS)
 
 	# posterior means 
 	APM<-APS/nrow(VC) ; BPM<-BPS/nrow(VC)  
-	UVPM<-UVPS/nrow(VC) ; YPM<-YPS/nrow(VC) 
+	UVPM<-UVPS/nrow(VC) ; 
+	YPM<-lapply(YPS, function(x){ x/nrow(VC) })
 	EZ<-get_EZ_cpp(Xlist, 
 		apply(BETA,2,mean), outer(APM,BPM,"+"), 
 		UVPM, diag(nrow(UVPM)))
 
 	# adding names
 	rownames(UVPM)<-colnames(UVPM)<-actors
-	dimnames(EZ)<-dimnames(YPM)
+	dimnames(EZ)<-list(actors,actors,pdLabs)
 	rownames(BETA)<-NULL
 
 	# asymmetric uv
@@ -44,7 +45,7 @@ getFitObject <- function(
 		UDV<-svd(UVPM)
 		U<-UDV$u[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
 		V<-UDV$v[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
-		rownames(U)<-rownames(V)<-dimnames(Y)[[1]]
+		rownames(U)<-rownames(V)<-actors
 	}
 
   # symmetric ul
@@ -54,16 +55,15 @@ getFitObject <- function(
 		eR<- which( rank(-abs(eULU$val),ties.method="first") <= R )
 		U<-eULU$vec[,seq(1,R,length=R),drop=FALSE]
 		L<-eULU$val[eR]   
-		rownames(U)<-rownames(ULUPM)<-colnames(ULUPM)<-dimnames(Y)[[1]]
+		rownames(U)<-rownames(ULUPM)<-colnames(ULUPM)<-actors
 		for(t in 1:N){ 
 			EZ[,,t]<-.5*(EZ[,,t]+t(EZ[,,t]))
-			YPM[,,t]<-.5*(YPM[,,t]+t(YPM[,,t]))
+			YPM[[t]]<-.5*(YPM[[t]]+t(YPM[[t]]))
 		}
 	}
 
     # reformat EZ and YPM as list objects
     EZ <- arrayToList(EZ, actorByYr, pdLabs)
-    YPM <- arrayToList(YPM, actorByYr, pdLabs)
 
     # create fitted object
     if(symmetric){

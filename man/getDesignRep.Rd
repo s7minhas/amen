@@ -7,11 +7,15 @@
 getDesignRep(Xdyad, Xrow, Xcol, intercept, n, N, pr, pc, pd)
 }
 \arguments{
+\item{Y}{dependent variable in array format}
+
 \item{Xdyad}{dyadic covariates in array format}
 
 \item{Xrow}{sender covariates in array format}
 
 \item{Xcol}{receiver covariates in array format}
+
+\item{actorSet}{vector of actors}
 
 \item{intercept}{logical indicating whether to include intercept}
 
