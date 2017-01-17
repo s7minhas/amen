@@ -267,24 +267,32 @@ ame_repL <- function(
     }
 
     # update s2
-    if (model=="nrm"){ s2<-rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2))) }
+    if (model=="nrm"){
+      s2New<-rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2)))
+      if(class(s2New)!='try-error'){ s2 <- s2New }
+    }
       
     # update beta, a b
     if( (pr+pc+pd+intercept)>0 ){
       iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
       tmp<-eigen(Sabs) ; k<-sum(zapsmall(tmp$val)>0 )
       G<-tmp$vec[,1:k] %*% sqrt(diag(tmp$val[1:k],nrow=k))
-      betaABCalc <- rbeta_ab_rep_fc_cpp(
-        ZT=sweep(Z,c(1,2),U%*%t(V)), Xr=XrLong, Xc=XcLong, mX=mXLong, mXt=mXtLong,
-        XX=xxLong, XXt=xxTLong, iSe2=iSe2, Sabs=Sabs, k=k, G=G
-        )
+      betaABCalc <- try(
+        rbeta_ab_rep_fc_cpp(
+          ZT=sweep(Z,c(1,2),U%*%t(V)), Xr=XrLong, Xc=XcLong, mX=mXLong, mXt=mXtLong,
+          XX=xxLong, XXt=xxTLong, iSe2=iSe2, Sabs=Sabs, k=k, G=G ),
+        silent = TRUE)
     } else {
-      betaABCalc <- rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2)
+      betaABCalc <- try(
+        rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2),
+        silent = TRUE)
     }
-    beta <- c(betaABCalc$beta)
-    a <- c(betaABCalc$a) * rvar
-    b <- c(betaABCalc$b) * cvar
-    if(symmetric){ a<-b<-(a+b)/2 }
+    if(class(betaABCalc)!='try-error'){
+        beta <- c(betaABCalc$beta)
+        a <- c(betaABCalc$a) * rvar
+        b <- c(betaABCalc$b) * cvar
+        if(symmetric){ a<-b<-(a+b)/2 }
+    }
  
     # update Sab - full SRM
     if(rvar & cvar & !symmetric)
@@ -315,7 +323,8 @@ ame_repL <- function(
     if(dcor)
     {
       E.T <- Z - get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
-      rho<-rrho_mh_rep_cpp(E.T, rho,s2)
+      rhoNew<-try( rrho_mh_rep_cpp(E.T, rho,s2), silent=TRUE )
+      if(class(rhoNew)!='try-error'){ rho<-rhoNew }
     }
      
     # shrink rho - symmetric case 
@@ -330,12 +339,17 @@ ame_repL <- function(
       if(symmetric)
       { 
         EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
-        UV<-rUV_sym_fc_cpp(EA, U, V, s2/dim(E)[3], shrink, symLoopIDs[[s]]-1)
+        UV<-try(
+          rUV_sym_fc_cpp(EA, U, V, 
+            s2/dim(E)[3], shrink, symLoopIDs[[s]]-1), silent=TRUE )
+        if(class(UV)=='try-error'){ UV <- list(U=U,V=V) }
       }
       if(!symmetric){
-        UV <- rUV_rep_fc_cpp(E, U, V, rho, s2, 
-          mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)),
-          maxmargin=1e-6, shrink, asymLoopIDs[[s]]-1 )
+        UV <- try(
+          rUV_rep_fc_cpp(E, U, V, rho, s2,
+            mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)),
+            maxmargin=1e-6, shrink, asymLoopIDs[[s]]-1 ), silent = TRUE )
+        if(class(UV)=='try-error'){ UV <- list(U=U,V=V) }
       }      
 
       U<-UV$U ; V<-UV$V
