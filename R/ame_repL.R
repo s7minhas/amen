@@ -268,7 +268,9 @@ ame_repL <- function(
 
     # update s2
     if (model=="nrm"){
-      s2New<-rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2)))
+      s2New<-try(
+        rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2))), 
+        silent=TRUE)
       if(class(s2New)!='try-error'){ s2 <- s2New }
     }
       
