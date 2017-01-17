@@ -3,7 +3,7 @@
 #' @param APS summed additive sender random effects
 #' @param BPS summed additive sender random effects
 #' @param UVPS summed multiplicative random effects
-#' @param YPS summed Y posterior predictive values in list format
+#' @param YPS summed Y posterior predictive values
 #' @param BETA Matrix of draws for regression coefficient estimates
 #' @param VC Matrix of draws for variance estimates
 #' @param GOF Matrix of draws for goodness of fit calculations
@@ -18,19 +18,18 @@ getFitObject <- function(
 	APS, BPS, UVPS, YPS, 
 	BETA, VC, GOF,
 	Xlist, actorByYr, startVals,
-	symmetric
+	symmetric, tryErrorChecks
 	){
 
 	# some labels and dims
 	actors <- names(APS)
-	pdLabs <- names(YPS)
+	pdLabs <- dimnames(YPS)[[3]]
 	R <- ncol(startVals$U)
-	N <- length(YPS)
+	N <- dim(YPS)[3]
 
 	# posterior means 
 	APM<-APS/nrow(VC) ; BPM<-BPS/nrow(VC)  
-	UVPM<-UVPS/nrow(VC) ; 
-	YPM<-lapply(YPS, function(x){ x/nrow(VC) })
+	UVPM<-UVPS/nrow(VC) ; YPM<-YPS/nrow(VC)
 	EZ<-get_EZ_cpp(Xlist, 
 		apply(BETA,2,mean), outer(APM,BPM,"+"), 
 		UVPM, diag(nrow(UVPM)))
@@ -58,23 +57,24 @@ getFitObject <- function(
 		rownames(U)<-rownames(ULUPM)<-colnames(ULUPM)<-actors
 		for(t in 1:N){ 
 			EZ[,,t]<-.5*(EZ[,,t]+t(EZ[,,t]))
-			YPM[[t]]<-.5*(YPM[[t]]+t(YPM[[t]]))
+			YPM[,,t]<-.5*(YPM[,,t]+t(YPM[,,t]))
 		}
 	}
 
     # reformat EZ and YPM as list objects
     EZ <- arrayToList(EZ, actorByYr, pdLabs)
+    YPM <- arrayToList(YPM, actorByYr, pdLabs)
 
     # create fitted object
     if(symmetric){
     fit <- list(
     	BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
-    	YPM=YPM,GOF=GOF, startVals=startVals )
+    	YPM=YPM,GOF=GOF, startVals=startVals, tryErrorChecks=tryErrorChecks)
     }
     if(!symmetric){
     fit <- list(
     	BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
-    	YPM=YPM,GOF=GOF, startVals=startVals )
+    	YPM=YPM,GOF=GOF, startVals=startVals, tryErrorChecks=tryErrorChecks)
     }
     class(fit)<-"ame"
     return(fit)

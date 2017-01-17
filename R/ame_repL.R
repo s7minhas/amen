@@ -61,7 +61,7 @@
 #' @param startVals List from previous model run containing parameter
 #' @param periodicSave logical: indicating whether to periodically save
 #' MCMC results
-#' @param savePoint quantile interval indicating when to save during post
+#' @param saveInterval quantile interval indicating when to save during post
 #' burn-in phase.
 #' @param outFile character vector indicating name and path in which
 #' file should be stored if periodicSave is selected. For example,
@@ -102,7 +102,7 @@ ame_repL <- function(
   seed = 1, nscan = 10000, burn = 500, odens = 25,
   plot = TRUE, print = FALSE, gof = TRUE, 
   startVals = NULL, periodicSave=FALSE, outFile=NULL,
-  savePoint=0.25
+  saveInterval=0.25
   )
 {
   #
@@ -120,7 +120,7 @@ ame_repL <- function(
 
   # calc savePoints
   savePoints <- (burn:(nscan+burn))[(burn:(nscan+burn)) %% odens==0]
-  savePoints <- savePoints[round(quantile(1:length(savePoints), probs=seq(.25,1,.25)))]
+  savePoints <- savePoints[round(quantile(1:length(savePoints), probs=seq(saveInterval,1,saveInterval)))]
 
   # check formatting of input objects
   checkFormat(Y=Y, Xdyad=Xdyad, Xrow=Xrow, Xcol=Xcol)
@@ -129,7 +129,6 @@ ame_repL <- function(
   N<-length(Y) ; pdLabs <- names(Y) ; Y<-lapply(Y, function(y){diag(y)=NA; return(y)})
 
   # convert into large array format
-  yOrig <- Y
   arrayObj<-listToArray(actorSet, Y, Xdyad, Xrow, Xcol)
   Y<-arrayObj$Y ; Xdyad<-arrayObj$Xdyad ; Xrow<-arrayObj$Xrow
   Xcol<-arrayObj$Xrow ; rm(arrayObj)
@@ -204,6 +203,7 @@ ame_repL <- function(
   # helpful mcmc params
   symLoopIDs <- lapply(1:(nscan + burn), function(x){ rep(sample(1:nrow(U)),4) })  
   asymLoopIDs <- lapply(1:(nscan + burn), function(x){ sample(1:R) })  
+  tryErrorChecks<-list(s2=0,betaAB=0,rho=0,UV=0)  
   iter <- 1
     
   # output items
@@ -211,10 +211,10 @@ ame_repL <- function(
   VC<-matrix(nrow=nscan/odens,ncol=5-3*symmetric)
   UVPS <- U %*% t(V) * 0
   APS<-BPS<-rep(0,nrow(Y[,,1]))
-  YPS<-arrayToList(Y*0, actorByYr, pdLabs)
+  YPS<-array(0,dim=dim(Y),dimnames=dimnames(Y)) 
   GOF <- matrix(NA, nrow=(nscan/odens)+1, ncol=4,
     dimnames=list(c('obs',1:(nscan/odens)),c("sd.rowmean","sd.colmean","dyad.dep","triad.dep")))
-  GOF[1,] <- rowMeans(do.call('cbind', lapply(yOrig, gofstats)))
+  GOF[1,] <- rowMeans(apply(Y,3,gofstats))
   names(APS)<-names(BPS)<-rownames(U)<-rownames(V)<-rownames(Y[,,1])
    
   # names of parameters, asymmetric case  
@@ -271,7 +271,7 @@ ame_repL <- function(
       s2New<-try(
         rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2))), 
         silent=TRUE)
-      if(class(s2New)!='try-error'){ s2 <- s2New }
+      if(class(s2New)!='try-error'){ s2 <- s2New } else { tryErrorChecks$s2<-tryErrorChecks$s2+1 }
     }
       
     # update beta, a b
@@ -294,7 +294,7 @@ ame_repL <- function(
         a <- c(betaABCalc$a) * rvar
         b <- c(betaABCalc$b) * cvar
         if(symmetric){ a<-b<-(a+b)/2 }
-    }
+    } else { tryErrorChecks$betaAB<-tryErrorChecks$betaAB+1  }
  
     # update Sab - full SRM
     if(rvar & cvar & !symmetric)
@@ -326,7 +326,7 @@ ame_repL <- function(
     {
       E.T <- Z - get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
       rhoNew<-try( rrho_mh_rep_cpp(E.T, rho,s2), silent=TRUE )
-      if(class(rhoNew)!='try-error'){ rho<-rhoNew }
+      if(class(rhoNew)!='try-error'){ rho<-rhoNew } else { tryErrorChecks$rho<-tryErrorChecks$rho+1 }
     }
      
     # shrink rho - symmetric case 
@@ -344,14 +344,14 @@ ame_repL <- function(
         UV<-try(
           rUV_sym_fc_cpp(EA, U, V, 
             s2/dim(E)[3], shrink, symLoopIDs[[s]]-1), silent=TRUE )
-        if(class(UV)=='try-error'){ UV <- list(U=U,V=V) }
+        if(class(UV)=='try-error'){ UV <- list(U=U,V=V) ; tryErrorChecks$UV<-tryErrorChecks$UV+1 }
       }
       if(!symmetric){
         UV <- try(
           rUV_rep_fc_cpp(E, U, V, rho, s2,
             mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)),
             maxmargin=1e-6, shrink, asymLoopIDs[[s]]-1 ), silent = TRUE )
-        if(class(UV)=='try-error'){ UV <- list(U=U,V=V) }
+        if(class(UV)=='try-error'){ UV <- list(U=U,V=V) ; tryErrorChecks$UV<-tryErrorChecks$UV+1 }
       }      
 
       U<-UV$U ; V<-UV$V
@@ -385,37 +385,30 @@ ame_repL <- function(
       BPS <- BPS + b 
         
       # simulate from posterior predictive 
-      Ys <- arrayToList(Y*0, actorByYr, pdLabs)
       EZ <- get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V );dimnames(EZ) <- dimnames(Y)
-      EZ <- arrayToList(EZ, actorByYr, pdLabs)
-      yOrig <- arrayToList(Y, actorByYr, pdLabs)
-      Ys <- lapply(1:N, function(t){
-        if(symmetric){ EZ[[t]]<-(EZ[[t]]+t(EZ[[t]]))/2 }
-        
-        if(model=="bin"){ YsT<-simY_bin(EZ[[t]],rho) }
-        if(model=="cbin"){ YsT<-1*(simY_frn(EZ[[t]],rho,odmax,YO=yOrig[[t]])>0) }
-        if(model=="frn"){ YsT<-simY_frn(EZ[[t]],rho,odmax,YO=yOrig[[t]]) }
-        if(model=="rrl"){ YsT<-simY_rrl(EZ[[t]],rho,odobs,YO=yOrig[[t]] ) }
-        if(model=="nrm"){ YsT<-simY_nrm(EZ[[t]],rho,s2) }
-        if(model=="ord"){ YsT<-simY_ord(EZ[[t]],rho,yOrig[[t]]) }
-        
+      Ys <- EZ*0
+      for (t in 1:N)
+      {
+        if(symmetric){ EZ[,,t]<-(EZ[,,t]+t(EZ[,,t]))/2 }
+
+        if(model=="bin"){ Ys[,,t]<-simY_bin(EZ[,,t],rho) }
+        if(model=="cbin"){ Ys[,,t]<-1*(simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t])>0)}
+        if(model=="frn"){ Ys[,,t]<-simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t]) }
+        if(model=="rrl"){ Ys[,,t]<-simY_rrl(EZ[,,t],rho,odobs,YO=Y[,,t] ) }
+        if(model=="nrm"){ Ys[,,t]<-simY_nrm(EZ[,,t],rho,s2) }
+        if(model=="ord"){ Ys[,,t]<-simY_ord(EZ[,,t],rho,Y[,,t]) }
+    
         if(symmetric)
-        {
-          Yst<-YsT ; Yst[lower.tri(Yst)]<-0 ; YsT<-Yst+t(Yst)
+        {  
+          Yst<-Ys[,,t] ; Yst[lower.tri(Yst)]<-0 ; Ys[,,t]<-Yst+t(Yst)
         }
-        
-        return(YsT)
-      })
+      } 
 
       # update posterior sum
-      YPS <- lapply(1:N, function(t){return(YPS[[t]] + Ys[[t]])}); names(YPS) <- pdLabs
+      YPS<-YPS+Ys
 
       # save posterior predictive GOF stats
-      if(gof)
-      {
-        Ys <- lapply(1:N, function(t){ ys<-Ys[[t]] ; ys[is.na(yOrig[[t]])]<-NA ; return(ys) })
-        GOF[(iter)+1,]<- rowMeans(do.call('cbind', lapply(Ys, gofstats)))
-      }
+      if(gof){Ys[is.na(Y)]<-NA ;GOF[(iter)+1,]<-rowMeans(apply(Ys,3,gofstats))}
        
       # print MC progress 
       if(print)
@@ -435,7 +428,7 @@ ame_repL <- function(
         startVals <- list(Z=Z,beta=beta,a=a,b=b,U=U,V=V,rho=rho,s2=s2,Sab=Sab)
         fit <- getFitObject( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, 
           BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr,
-          startVals=startVals, symmetric=symmetric)
+          startVals=startVals, symmetric=symmetric, tryErrorChecks=tryErrorChecks)
         save(fit, file=outFile) ; rm(list=c('fit','startVals'))
       }
 
@@ -471,7 +464,7 @@ ame_repL <- function(
   # output
   fit <- getFitObject( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, 
     BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr, 
-    startVals=startVals, symmetric=symmetric)
+    startVals=startVals, symmetric=symmetric, tryErrorChecks=tryErrorChecks)
   return(fit) # output object to workspace
 
 }

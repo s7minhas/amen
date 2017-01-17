@@ -22,7 +22,8 @@ Imports:
     ggplot2,
     plyr
 Suggests:
-    coda
+    coda,
+    network
 LinkingTo: 
     Rcpp,
     RcppArmadillo
