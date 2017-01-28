@@ -6,12 +6,72 @@ library(rbenchmark)
 # Mansfield milner example
 load('~/Dropbox/Research/netsMatter/replications/mansfield_milner_2012/inputData/amenData.rda')
 fitList <- ame_repL(
-  Y=yList, Xdyad=xDyadList, Xrow=xNodeList,
-  model='bin', symmetric=TRUE, R=2, intercept=FALSE,
-  burn=10000, nscan=5000, odens=25, seed=6886,
+  Y=yList, Xdyad=xDyadList, Xrow=xNodeList, Xcol=NULL,
+  model='bin', symmetric=FALSE, R=2, intercept=FALSE,
+  burn=3000, nscan=2000, odens=25, seed=6886,
   plot=TRUE, print=FALSE, gof=TRUE, periodicSave = TRUE,
-  outFile = '~/Desktop/tmp.rda'
+  outFile = '~/Desktop/assymmCase.rda'
   )
+
+load('~/Desktop/current.rda') ; fitCurr=fit
+load('~/Desktop/nonCPP_symmUVfn.rda') ; fitOldUV=fit
+load('~/Desktop/assymmCase.rda') ; fitAssym=fit
+load('~/Desktop/yMissArray.rda') ; fitMissArray=fit
+
+gofPlot(fitMissArray$GOF, TRUE)
+
+
+fitList = fitAssym
+
+GOF = fitList$GOF
+
+Y=yList ; Xdyad=xDyadList ; Xrow=xNodeList ; Xcol=xNodeList ; symmetric=TRUE
+model = 'bin' ; nvar=TRUE ; intercept=FALSE
+symmetric=FALSE ; rvar=TRUE ; cvar=TRUE
+
+# get actor info
+actorByYr <- lapply(Y, rownames)
+actorSet <- sort(unique(unlist( actorByYr ))) ; n <- length(actorSet)
+# set diag to NA 
+N<-length(Y) ; pdLabs <- names(Y) ; Y<-lapply(Y, function(y){diag(y)=NA; return(y)})
+# convert into large array format
+arrayObj<-listToArray(actorSet, Y, Xdyad, Xrow, Xcol)
+Y<-arrayObj$Y ; Xdyad<-arrayObj$Xdyad ; Xrow<-arrayObj$Xrow
+Xcol<-arrayObj$Xrow ; rm(arrayObj)
+# force binary if binary model specified 
+if(is.element(model,c("bin","cbin"))) { Y<-1*(Y>0) } 
+# some settings for symmetric case
+if(symmetric){ Xcol<-Xrow ; rvar<-cvar<-nvar }
+# construct design matrix    
+pr<-length(Xrow[,,1])/n
+pc<-length(Xcol[,,1])/n
+pd<-length(Xdyad[,,,1])/n^2
+designObj <- getDesignRep(
+  Y=Y,Xdyad=Xdyad,Xrow=Xrow,Xcol=Xcol,actorSet=actorSet,
+  intercept=intercept,n=n,N=N,pr=pr,pc=pc,pd=pd)
+Y<-designObj$Y ; X<-designObj$X ;rm(designObj)
+
+rowMeans(apply(Y,3,gofstats))
+Y2 <- Y ; Y2[is.na(Y2)] <- 0
+rowMeans(apply(Y2,3,gofstats))
+
+EZ = fitList$EZ ; rho=1
+Ys = lapply(1:N, function(t){
+  if(symmetric){ EZ[[t]] <- ( EZ[[t]]+t(EZ[[t]]) )/2 }
+  if(model=='bin'){ Ys <- simY_bin(EZ[[t]], rho) }
+  if(symmetric){ Yst<-Ys;Yst[lower.tri(Yst)]<-0;Ys<-Yst+t(Yst) }
+  return(Ys)
+})
+tmp=rowMeans(do.call('cbind',lapply(Ys,function(y){ gofstats(y)})))
+tmp
+fitList$GOF[1,]
+apply(fitList$GOF[-1,],2,mean)
+
+
+gofPlot(fitList$GOF, FALSE)
+paramPlot(fitList$BETA[,20:25])
+paramPlot(fitList$VC)
+
 ############################################################
 
 ############################################################
@@ -80,7 +140,7 @@ benchmark(
     Y=YX_bin_list$Y, Xdyad=YX_bin_list$X, R=2,
     model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
     burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
-  ),  
+  ),
   fitOrig <- ame_rep(
     Y, Xdyad, R=2,
     model='nrm', seed=6886,symmetric=FALSE,intercept=TRUE,
@@ -112,7 +172,7 @@ benchmark(
     Y=YX_bin_list$Y, R=2,
     model='nrm', seed=6886,symmetric=FALSE,intercept=FALSE,
     burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
-  ),  
+  ),
   fitOrig <- ame_rep(
     Y, R=2,
     model='nrm', seed=6886,symmetric=FALSE,intercept=FALSE,
@@ -224,7 +284,7 @@ benchmark(
   fitList<-ame_repL(
     yL,R=1, model="ord",symmetric=TRUE,
     burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE
-  ),  
+  ),
   fitOrig<-ame_rep(
     Y,R=1, model="ord",symmetric=TRUE,
     burn=1000,nscan=2000,odens=25,plot=FALSE, print=FALSE

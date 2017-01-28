@@ -18,7 +18,7 @@ getFitObject <- function(
 	APS, BPS, UVPS, YPS, 
 	BETA, VC, GOF,
 	Xlist, actorByYr, startVals,
-	symmetric, tryErrorChecks
+	symmetric
 	){
 
 	# some labels and dims
@@ -69,12 +69,12 @@ getFitObject <- function(
     if(symmetric){
     fit <- list(
     	BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
-    	YPM=YPM,GOF=GOF, startVals=startVals, tryErrorChecks=tryErrorChecks)
+    	YPM=YPM,GOF=GOF, startVals=startVals)
     }
     if(!symmetric){
     fit <- list(
     	BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
-    	YPM=YPM,GOF=GOF, startVals=startVals, tryErrorChecks=tryErrorChecks)
+    	YPM=YPM,GOF=GOF, startVals=startVals)
     }
     class(fit)<-"ame"
     return(fit)

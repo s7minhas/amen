@@ -5,7 +5,7 @@
 \title{Get fitted object from MCMC results}
 \usage{
 getFitObject(APS, BPS, UVPS, YPS, BETA, VC, GOF, Xlist, actorByYr, startVals,
-  symmetric, tryErrorChecks)
+  symmetric)
 }
 \arguments{
 \item{APS}{summed additive sender random effects}

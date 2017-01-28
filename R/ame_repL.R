@@ -55,7 +55,7 @@
 #' @param nscan number of iterations of the Markov chain (beyond burn-in)
 #' @param burn burn in for the Markov chain
 #' @param odens output density for the Markov chain
-#' @param plot logical: plot results while running?
+#' @param plot logical: plot results at end of run?
 #' @param print logical: print results while running?
 #' @param gof logical: calculate goodness of fit statistics?
 #' @param startVals List from previous model run containing parameter
@@ -129,9 +129,9 @@ ame_repL <- function(
   N<-length(Y) ; pdLabs <- names(Y) ; Y<-lapply(Y, function(y){diag(y)=NA; return(y)})
 
   # convert into large array format
-  arrayObj<-listToArray(actorSet, Y, Xdyad, Xrow, Xcol)
+  arrayObj<-listToArray(actors=actorSet, Y=Y, Xdyad=Xdyad, Xrow=Xrow, Xcol=Xcol)
   Y<-arrayObj$Y ; Xdyad<-arrayObj$Xdyad ; Xrow<-arrayObj$Xrow
-  Xcol<-arrayObj$Xrow ; rm(arrayObj)
+  Xcol<-arrayObj$Xcol ; rm(arrayObj)
 
   # force binary if binary model specified 
   if(is.element(model,c("bin","cbin"))) { Y<-1*(Y>0) } 
@@ -203,7 +203,6 @@ ame_repL <- function(
   # helpful mcmc params
   symLoopIDs <- lapply(1:(nscan + burn), function(x){ rep(sample(1:nrow(U)),4) })  
   asymLoopIDs <- lapply(1:(nscan + burn), function(x){ sample(1:R) })  
-  tryErrorChecks<-list(s2=0,betaAB=0,rho=0,UV=0)  
   iter <- 1
     
   # output items
@@ -238,7 +237,7 @@ ame_repL <- function(
 
   # MCMC
   have_coda<-suppressWarnings(
-               try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
+    try(requireNamespace("coda",quietly = TRUE),silent=TRUE))
 
   if(burn!=0){
     pbBurn <- txtProgressBar(min=1,max=burn,style=3)
@@ -267,34 +266,23 @@ ame_repL <- function(
     }
 
     # update s2
-    if (model=="nrm"){
-      s2New<-try(
-        rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2))), 
-        silent=TRUE)
-      if(class(s2New)!='try-error'){ s2 <- s2New } else { tryErrorChecks$s2<-tryErrorChecks$s2+1 }
-    }
+    if (model=="nrm"){ s2<-rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2))) }
       
     # update beta, a b
     if( (pr+pc+pd+intercept)>0 ){
       iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
       tmp<-eigen(Sabs) ; k<-sum(zapsmall(tmp$val)>0 )
       G<-tmp$vec[,1:k] %*% sqrt(diag(tmp$val[1:k],nrow=k))
-      betaABCalc <- try(
-        rbeta_ab_rep_fc_cpp(
-          ZT=sweep(Z,c(1,2),U%*%t(V)), Xr=XrLong, Xc=XcLong, mX=mXLong, mXt=mXtLong,
-          XX=xxLong, XXt=xxTLong, iSe2=iSe2, Sabs=Sabs, k=k, G=G ),
-        silent = TRUE)
+      betaABCalc <- rbeta_ab_rep_fc_cpp(
+        ZT=sweep(Z,c(1,2),U%*%t(V)), Xr=XrLong, Xc=XcLong, mX=mXLong, mXt=mXtLong,
+        XX=xxLong, XXt=xxTLong, iSe2=iSe2, Sabs=Sabs, k=k, G=G )
     } else {
-      betaABCalc <- try(
-        rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2),
-        silent = TRUE)
+      betaABCalc <- rbeta_ab_rep_fc( sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2 )
     }
-    if(class(betaABCalc)!='try-error'){
-        beta <- c(betaABCalc$beta)
-        a <- c(betaABCalc$a) * rvar
-        b <- c(betaABCalc$b) * cvar
-        if(symmetric){ a<-b<-(a+b)/2 }
-    } else { tryErrorChecks$betaAB<-tryErrorChecks$betaAB+1  }
+    beta <- c(betaABCalc$beta)
+    a <- c(betaABCalc$a) * rvar
+    b <- c(betaABCalc$b) * cvar
+    if(symmetric){ a<-b<-(a+b)/2 }
  
     # update Sab - full SRM
     if(rvar & cvar & !symmetric)
@@ -325,8 +313,7 @@ ame_repL <- function(
     if(dcor)
     {
       E.T <- Z - get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
-      rhoNew<-try( rrho_mh_rep_cpp(E.T, rho,s2), silent=TRUE )
-      if(class(rhoNew)!='try-error'){ rho<-rhoNew } else { tryErrorChecks$rho<-tryErrorChecks$rho+1 }
+      rho<-rrho_mh_rep_cpp(E.T, rho,s2)
     }
      
     # shrink rho - symmetric case 
@@ -341,18 +328,14 @@ ame_repL <- function(
       if(symmetric)
       { 
         EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
-        UV<-try(
-          rUV_sym_fc_cpp(EA, U, V, 
-            s2/dim(E)[3], shrink, symLoopIDs[[s]]-1), silent=TRUE )
-        if(class(UV)=='try-error'){ UV <- list(U=U,V=V) ; tryErrorChecks$UV<-tryErrorChecks$UV+1 }
+        UV<-rUV_sym_fc_cpp(EA, U, V,
+          s2/dim(E)[3], shrink, symLoopIDs[[s]]-1)
       }
       if(!symmetric){
-        UV <- try(
-          rUV_rep_fc_cpp(E, U, V, rho, s2,
-            mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)),
-            maxmargin=1e-6, shrink, asymLoopIDs[[s]]-1 ), silent = TRUE )
-        if(class(UV)=='try-error'){ UV <- list(U=U,V=V) ; tryErrorChecks$UV<-tryErrorChecks$UV+1 }
-      }      
+        UV <- rUV_rep_fc_cpp(E, U, V, rho, s2,
+          mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)),
+          maxmargin=1e-6, shrink, asymLoopIDs[[s]]-1 )
+      }
 
       U<-UV$U ; V<-UV$V
     }
@@ -428,7 +411,7 @@ ame_repL <- function(
         startVals <- list(Z=Z,beta=beta,a=a,b=b,U=U,V=V,rho=rho,s2=s2,Sab=Sab)
         fit <- getFitObject( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, 
           BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr,
-          startVals=startVals, symmetric=symmetric, tryErrorChecks=tryErrorChecks)
+          startVals=startVals, symmetric=symmetric)
         save(fit, file=outFile) ; rm(list=c('fit','startVals'))
       }
 
@@ -464,7 +447,7 @@ ame_repL <- function(
   # output
   fit <- getFitObject( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, 
     BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr, 
-    startVals=startVals, symmetric=symmetric, tryErrorChecks=tryErrorChecks)
+    startVals=startVals, symmetric=symmetric)
   return(fit) # output object to workspace
 
 }

@@ -30,6 +30,6 @@ A Gibbs sampler for updating the multiplicative effect matrices U and V,
 assuming they are the same across replicates.
 }
 \author{
-Peter Hoff, Yanjun He, Shahryar Minhas
+Peter Hoff, Yanjun He
 }
 

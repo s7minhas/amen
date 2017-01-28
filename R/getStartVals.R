@@ -36,7 +36,7 @@ getStartVals <- function(startVals, Y, model, xP, rvar, cvar, R){
       # zyMax <- max(Z[,,t][Y[,,t]==0],na.rm=TRUE)
       zyMax <- ifelse( sum(Y[,,t]==0, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==0],na.rm=TRUE), 0)
       # zyMin <- min(Z[,,t][Y[,,t]==1],na.rm=TRUE)
-      zyMin <- ifelse( sum(Y[,,t]==1, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==1],na.rm=TRUE), 0)
+      zyMin <- ifelse( sum(Y[,,t]==1, na.rm=TRUE)!=0, min(Z[,,t][Y[,,t]==1],na.rm=TRUE), 0)
       z01<-.5*(zyMax+zyMin ) 
       Z[,,t]<-Z[,,t] - z01
     } 

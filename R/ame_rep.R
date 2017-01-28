@@ -181,10 +181,19 @@ ame_rep<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     }  
     if(model=="bin")
     { 
-      Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t])) 
-      z01<-.5*(max(Z[,,t][Y[,,t]==0],na.rm=TRUE)+
-               min(Z[,,t][Y[,,t]==1],na.rm=TRUE) ) 
-      Z[,,t]<-Z[,,t] - z01
+      # Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t])) 
+      # z01<-.5*(max(Z[,,t][Y[,,t]==0],na.rm=TRUE)+
+      #          min(Z[,,t][Y[,,t]==1],na.rm=TRUE) ) 
+      # Z[,,t]<-Z[,,t] - z01
+      ###### delete this
+      Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t]))
+      # zyMax <- max(Z[,,t][Y[,,t]==0],na.rm=TRUE)
+      zyMax <- ifelse( sum(Y[,,t]==0, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==0],na.rm=TRUE), 0)
+      # zyMin <- min(Z[,,t][Y[,,t]==1],na.rm=TRUE)
+      zyMin <- ifelse( sum(Y[,,t]==1, na.rm=TRUE)!=0, min(Z[,,t][Y[,,t]==1],na.rm=TRUE), 0)
+      z01<-.5*(zyMax+zyMin ) 
+      Z[,,t]<-Z[,,t] - z01      
+      ###### delete this      
     } 
       
     if(is.element(model,c("cbin","frn")))
@@ -217,6 +226,9 @@ ame_rep<-function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   { 
     mu<-mean(Z[,,t],na.rm=TRUE) 
     a<-rowMeans(Z[,,t],na.rm=TRUE) ; b<-colMeans(Z[,,t],na.rm=TRUE)
+    #### delete this
+    a[is.na(a)] <- 0 ; b[is.na(b)] <- 0    
+    #### delete this    
     ZA[,,t]<-mu + outer(a,b,"+")
   }
   Z[is.na(Z)]<-ZA[is.na(Z)] 
