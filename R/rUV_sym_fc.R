@@ -21,7 +21,7 @@
 #' rUV_sym_fc 
 #' 
 #' @export rUV_sym_fc
-rUV_sym_fc<-function(E,U,V,s2=1,shrink=TRUE,tmp)
+rUV_sym_fc<-function(E,U,V,s2=1,shrink=TRUE,tmp=rep(sample(1:n),4))
 {
 
   R<-ncol(U) ; n<-nrow(U) 
