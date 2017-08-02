@@ -131,7 +131,7 @@ ame_repL <- function(
   # convert into large array format
   arrayObj<-listToArray(actorSet, Y, Xdyad, Xrow, Xcol)
   Y<-arrayObj$Y ; Xdyad<-arrayObj$Xdyad ; Xrow<-arrayObj$Xrow
-  Xcol<-arrayObj$Xrow ; rm(arrayObj)
+  Xcol<-arrayObj$Xcol ; rm(arrayObj)
 
   # force binary if binary model specified 
   if(is.element(model,c("bin","cbin"))) { Y<-1*(Y>0) } 
